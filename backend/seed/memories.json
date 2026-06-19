@@ -1,0 +1,80 @@
+[
+  {
+    "memory_type": "organizational",
+    "domain": "customer",
+    "entity_id": "a1b2c3d4-0001-4000-8000-000000000001",
+    "content": {
+      "summary": "Greenfield Municipal Council — previous order of 100 solar street lights completed successfully in 2023. Delivery was 3 days late due to customs delay. Client was understanding but noted timeline concerns. Payment was received net-60 as agreed.",
+      "key_lesson": "Customs clearance for government orders may add 3-5 days to delivery timeline. Factor into scheduling for repeat orders.",
+      "interaction_date": "2023-11-15"
+    },
+    "importance": 75.0,
+    "department": null,
+    "agent_id": null
+  },
+  {
+    "memory_type": "organizational",
+    "domain": "supplier",
+    "entity_id": "b2c3d4e5-0001-4000-8000-000000000001",
+    "content": {
+      "summary": "SolarTech Manufacturing — consistently reliable for large orders. 200 panel order in 2024 delivered on time. Quality inspection passed with 98.7% pass rate. Communication responsive.",
+      "key_lesson": "Preferred for quantity orders over 100 units. Lead time of 10 days is reliable but tight for urgent requests.",
+      "interaction_date": "2024-03-20"
+    },
+    "importance": 70.0,
+    "department": null,
+    "agent_id": null
+  },
+  {
+    "memory_type": "department",
+    "domain": "policy",
+    "entity_id": "minimum_margin_policy",
+    "content": {
+      "summary": "Organizational policy requires minimum 15% gross margin on all orders. Exceptions require Operations Manager approval and documented justification.",
+      "policy_reference": "FIN-POL-001",
+      "effective_date": "2024-01-01"
+    },
+    "importance": 90.0,
+    "department": "finance",
+    "agent_id": "finance"
+  },
+  {
+    "memory_type": "department",
+    "domain": "supplier",
+    "entity_id": "b2c3d4e5-0001-4000-8000-000000000003",
+    "content": {
+      "summary": "AfriEnergy Components — regional supplier in Africa. Faster lead times (5 days) but higher unit cost ($210). Good track record on small-to-medium orders. Net-30 payment terms.",
+      "key_lesson": "Best option when delivery speed is priority and order is under 200 units. Higher margin impact.",
+      "interaction_date": "2024-06-10"
+    },
+    "importance": 60.0,
+    "department": "procurement",
+    "agent_id": "procurement"
+  },
+  {
+    "memory_type": "organizational",
+    "domain": "decision",
+    "entity_id": "exchange_rate_risk_2024",
+    "content": {
+      "summary": "Previous decision to use international supplier (SolarTech) involved currency risk. USD-denominated contract with 30% deposit. Naira fluctuation caused 4% margin erosion. Finance recommended hedging for future international orders.",
+      "key_lesson": "International supplier contracts should include currency risk assessment and consider Naira hedging.",
+      "interaction_date": "2024-02-15"
+    },
+    "importance": 65.0,
+    "department": null,
+    "agent_id": null
+  },
+  {
+    "memory_type": "department",
+    "domain": "customer",
+    "entity_id": "a1b2c3d4-0001-4000-8000-000000000003",
+    "content": {
+      "summary": "RenPower Africa — repeat client with good relationship. Previous order of 200 panels was upsold from 150. Client appreciates volume discounts and fast communication.",
+      "key_lesson": "RenPower responds well to proactive suggestions. Can potentially upsell value-added services.",
+      "interaction_date": "2024-03-10"
+    },
+    "importance": 55.0,
+    "department": "sales",
+    "agent_id": "sales"
+  }
+]

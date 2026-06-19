@@ -1,0 +1,30 @@
+[
+  {
+    "id": "a1b2c3d4-0001-4000-8000-000000000001",
+    "name": "Sarah Mitchell",
+    "email": "sarah.mitchell@greenfield.gov.ng",
+    "company": "Greenfield Municipal Council",
+    "notes": "Government client. Previous projects: school solar installation (2024), street lighting pilot (2023). Payment history: net-60, always on time."
+  },
+  {
+    "id": "a1b2c3d4-0001-4000-8000-000000000002",
+    "name": "James Okafor",
+    "email": "james.okafor@novatechsolutions.com",
+    "company": "NovaTech Solutions",
+    "notes": "Private sector client. First-time order. Referred by trade show."
+  },
+  {
+    "id": "a1b2c3d4-0001-4000-8000-000000000003",
+    "name": "Chioma Adeyemi",
+    "email": "chioma@renpower.co.ke",
+    "company": "RenPower Africa",
+    "notes": "Repeat client. Previously ordered 200 panels (2024). Strong relationship."
+  },
+  {
+    "id": "a1b2c3d4-0001-4000-8000-000000000004",
+    "name": "David Chen",
+    "email": "dchen@sunlightinitiative.org",
+    "company": "Sunlight Initiative",
+    "notes": "NGO. Requires expedited shipping for humanitarian project. Budget-constrained."
+  }
+]

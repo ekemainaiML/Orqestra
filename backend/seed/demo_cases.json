@@ -1,0 +1,30 @@
+[
+  {
+    "id": "c3d4e5f6-0001-4000-8000-000000000001",
+    "scenario": "standard_order",
+    "customer_id": "a1b2c3d4-0001-4000-8000-000000000001",
+    "request_text": "Greenfield Municipal Council requires 500 solar-powered street light units for a new township development. Delivery must be completed within 14 days. Please provide a quotation and delivery schedule.",
+    "description": "Standard order — straightforward request, all information provided, normal margin expected."
+  },
+  {
+    "id": "c3d4e5f6-0001-4000-8000-000000000002",
+    "scenario": "ambiguous_request",
+    "customer_id": "a1b2c3d4-0001-4000-8000-000000000004",
+    "request_text": "We need solar lights ASAP for a humanitarian project. What can you do? Budget is tight.",
+    "description": "Ambiguous request — missing quantity, specifications, and delivery details. Tests the clarification workflow."
+  },
+  {
+    "id": "c3d4e5f6-0001-4000-8000-000000000003",
+    "scenario": "deadlock",
+    "customer_id": "a1b2c3d4-0001-4000-8000-000000000001",
+    "request_text": "Urgent: 600 solar street lights needed within 7 days for a government delegation visit. Delivery delay not acceptable. Budget flexible but must meet 15% margin policy.",
+    "description": "Deadlock scenario — 600 units in 7 days conflicts with supplier lead times AND the minimum margin policy when using the fastest supplier. Tests escalation and executive override."
+  },
+  {
+    "id": "c3d4e5f6-0001-4000-8000-000000000004",
+    "scenario": "executive_modification",
+    "customer_id": "a1b2c3d4-0001-4000-8000-000000000002",
+    "request_text": "NovaTech Solutions is requesting 300 solar street lights for a new industrial park. Standard delivery timeline. First-time order.",
+    "description": "Executive modification scenario — first-time client with no memory. Operator can inject a directive (e.g., 'offer volume discount to secure first order') and observe re-deliberation."
+  }
+]
