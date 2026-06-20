@@ -42,6 +42,7 @@ strict = false
 
 [tool.pytest.ini_options]
 asyncio_default_fixture_loop_scope = "session"
+asyncio_mode = "auto"
 testpaths = ["tests"]
 
 [tool.coverage.run]

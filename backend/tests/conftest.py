@@ -23,9 +23,12 @@ import os as _os
 TEST_DB_URL = _os.environ.get("TEST_DATABASE_URL")
 if not TEST_DB_URL:
     _base = settings.database_url
-    if "localhost:5432" in _base:
+    if _os.environ.get("DATABASE_URL"):
+        _base = _base
+    else:
         _base = _base.replace("localhost:5432", "localhost:5433")
-    TEST_DB_URL = _base + "_test"
+    _base = _base.replace("/orqestra", "/orqestra_test")
+    TEST_DB_URL = _base
 
 test_engine = create_async_engine(TEST_DB_URL, echo=False)
 test_async_session = async_sessionmaker(test_engine, class_=AsyncSession, expire_on_commit=False)
@@ -41,6 +44,7 @@ def event_loop():
 @pytest_asyncio.fixture(scope="session")
 async def setup_database():
     async with test_engine.begin() as conn:
+        await conn.run_sync(Base.metadata.drop_all)
         await conn.run_sync(Base.metadata.create_all)
     yield
     async with test_engine.begin() as conn:
@@ -50,9 +54,15 @@ async def setup_database():
 
 @pytest_asyncio.fixture
 async def db_session(setup_database) -> AsyncGenerator[AsyncSession, None]:
-    async with test_async_session() as session:
+    connection = await test_engine.connect()
+    transaction = await connection.begin()
+    session = AsyncSession(bind=connection, expire_on_commit=False)
+    try:
         yield session
-        await session.rollback()
+    finally:
+        await session.close()
+        await transaction.rollback()
+        await connection.close()
 
 
 @pytest_asyncio.fixture
@@ -95,11 +105,15 @@ async def seed_case(db_session: AsyncSession, seed_customers: list[Customer]) ->
 @pytest_asyncio.fixture
 async def client(setup_database) -> AsyncGenerator[AsyncClient, None]:
     async def override_get_session():
-        async with test_async_session() as session:
-            try:
-                yield session
-            finally:
-                await session.close()
+        connection = await test_engine.connect()
+        transaction = await connection.begin()
+        session = AsyncSession(bind=connection, expire_on_commit=False)
+        try:
+            yield session
+        finally:
+            await session.close()
+            await transaction.rollback()
+            await connection.close()
 
     app.dependency_overrides[get_session] = override_get_session
     transport = ASGITransport(app=app)
