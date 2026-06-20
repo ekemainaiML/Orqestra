@@ -1,25 +1,23 @@
 import uuid
-from datetime import datetime, timezone
 from typing import Any
 
 from fastapi import APIRouter, HTTPException
 from sqlalchemy import select
 
+from app.agents.registry import get_all_agent_ids
+from app.deliberation.adjudicator import adjudicate
 from app.deliberation.agent_manager import run_independent_assessment
 from app.deliberation.challenge_validator import process_challenges
-from app.events.event_store import get_events
 from app.deliberation.scoring_engine import calculate_scores
-from app.deliberation.adjudicator import adjudicate
 from app.deliberation.state_machine import DeliberationStateMachine
+from app.events.event_store import get_events
 from app.events.publisher import publish_event
-from app.governance.approval_handler import approve_case, reject_case, modify_case
+from app.governance.approval_handler import approve_case, modify_case, reject_case
 from app.governance.brief_generator import generate_brief
-from app.governance.iteration_manager import start_iteration, get_iteration_history
 from app.memory.memory_service import MemoryService
 from app.models.case import Case
 from app.models.customer import Customer
-from app.agents.registry import get_all_agent_ids
-from app.schemas.case import CaseCreate, CaseResponse, CaseDetail
+from app.schemas.case import CaseCreate, CaseDetail, CaseResponse
 from app.services.database import async_session
 
 router = APIRouter(prefix="/cases", tags=["cases"])
@@ -116,6 +114,7 @@ async def run_deliberation(case_id: str):
 
     async with async_session() as session:
         case = await session.get(Case, uuid.UUID(case_id))
+        assert case is not None, "Case was deleted mid-deliberation"
         sm = DeliberationStateMachine(case.status)
         sm.transition("independent_assessment")
         case.status = sm.current_state
@@ -131,6 +130,7 @@ async def run_deliberation(case_id: str):
 
     async with async_session() as session:
         case = await session.get(Case, uuid.UUID(case_id))
+        assert case is not None
         sm = DeliberationStateMachine(case.status)
         sm.transition("challenge_round")
         case.status = sm.current_state
@@ -144,6 +144,7 @@ async def run_deliberation(case_id: str):
 
     async with async_session() as session:
         case = await session.get(Case, uuid.UUID(case_id))
+        assert case is not None
         sm = DeliberationStateMachine(case.status)
         sm.transition("consensus_scoring")
         case.status = sm.current_state
@@ -154,6 +155,7 @@ async def run_deliberation(case_id: str):
 
     async with async_session() as session:
         case = await session.get(Case, uuid.UUID(case_id))
+        assert case is not None
         sm = DeliberationStateMachine(case.status)
         sm.transition("adjudication")
         case.status = sm.current_state
@@ -171,6 +173,7 @@ async def run_deliberation(case_id: str):
         await publish_event(case_id, "workflow_escalated", "adjudicator", decision_result)
         async with async_session() as session:
             case = await session.get(Case, uuid.UUID(case_id))
+            assert case is not None
             sm = DeliberationStateMachine(case.status)
             sm.transition("escalated")
             case.status = sm.current_state
@@ -182,6 +185,7 @@ async def run_deliberation(case_id: str):
 
     async with async_session() as session:
         case = await session.get(Case, uuid.UUID(case_id))
+        assert case is not None
         sm = DeliberationStateMachine(case.status)
         sm.transition("approval_pending")
         case.status = sm.current_state

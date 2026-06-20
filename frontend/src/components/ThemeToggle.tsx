@@ -17,10 +17,9 @@ function setTheme(theme: "light" | "dark") {
 }
 
 export function ThemeToggle() {
-  const [theme, setThemeState] = useState<"light" | "dark">("dark");
+  const [theme, setThemeState] = useState<"light" | "dark">(getTheme);
 
   useEffect(() => {
-    setThemeState(getTheme());
     const handler = () => setThemeState(getTheme());
     window.addEventListener("themechange", handler);
     return () => window.removeEventListener("themechange", handler);

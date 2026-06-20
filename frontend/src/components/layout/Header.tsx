@@ -2,11 +2,6 @@
 import { usePathname } from "next/navigation";
 import { ChevronRight } from "lucide-react";
 
-const PAGE_TITLES: Record<string, string> = {
-  "/": "Dashboard",
-  "/demo": "Demo Library",
-};
-
 export function Header() {
   const pathname = usePathname();
   const segments = pathname.split("/").filter(Boolean);

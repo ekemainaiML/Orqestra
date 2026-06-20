@@ -5,7 +5,6 @@ from app.memory.queries import (
     get_memories_by_department,
     get_memories_by_entity,
     get_organizational_memories,
-    search_memories,
     store_memory,
 )
 

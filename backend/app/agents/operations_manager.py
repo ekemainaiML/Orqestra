@@ -1,4 +1,4 @@
-from app.agents.base import BaseAgent, AgentContext, AgentRecommendation
+from app.agents.base import AgentContext, AgentRecommendation, BaseAgent
 from app.services.qwen_client import qwen
 from app.services.settings import settings
 

@@ -3,7 +3,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api import cases, demo, events, benchmark, dashboard
+from app.api import benchmark, cases, dashboard, demo, events
 from app.middleware.error_handler import ErrorHandlerMiddleware
 from app.models import Base
 from app.services.database import engine

@@ -1,6 +1,9 @@
-import type { NextConfig } from "next";
-
-const nextConfig: NextConfig = {
+const nextConfig = {
+  turbo: {
+    resolveAlias: {
+      "@/*": "./src/*",
+    },
+  },
   async rewrites() {
     return [
       {

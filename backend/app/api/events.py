@@ -1,11 +1,9 @@
 import asyncio
-import json
 
 from fastapi import APIRouter
 from sse_starlette.sse import EventSourceResponse
 
-from app.events.publisher import subscribe_events, SSE_CHANNEL
-from app.services.settings import settings
+from app.events.publisher import SSE_CHANNEL, subscribe_events
 
 router = APIRouter(prefix="/events", tags=["events"])
 

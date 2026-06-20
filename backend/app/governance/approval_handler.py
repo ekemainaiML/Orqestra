@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from app.deliberation.state_machine import DeliberationStateMachine
@@ -20,7 +20,7 @@ async def approve_case(case_id: str) -> dict[str, Any]:
             return {"error": f"Cannot approve case in status '{case.status}'"}
 
         case.status = "completed"
-        case.completed_at = datetime.now(timezone.utc)
+        case.completed_at = datetime.now(UTC)
         await session.commit()
 
     await publish_event(case_id, "decision_approved", "operator", {"case_id": case_id})
@@ -39,7 +39,7 @@ async def reject_case(case_id: str) -> dict[str, Any]:
             return {"error": f"Cannot reject case in status '{case.status}'"}
 
         case.status = "rejected"
-        case.completed_at = datetime.now(timezone.utc)
+        case.completed_at = datetime.now(UTC)
         await session.commit()
 
     await publish_event(case_id, "decision_rejected", "operator", {"case_id": case_id})

@@ -7,7 +7,6 @@ import type { CaseDetail, DeliberationResult, WorkflowEvent } from "@/lib/types"
 import { StatusBadge } from "@/components/StatusBadge";
 import { WorkflowGraph } from "@/components/WorkflowGraph";
 import { DecisionBoard } from "@/components/DecisionBoard";
-import { AgentCard } from "@/components/AgentCard";
 import {
   Play,
   CheckCircle,

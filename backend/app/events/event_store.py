@@ -1,8 +1,7 @@
 import uuid
-from datetime import datetime
 from typing import Any
 
-from sqlalchemy import select, and_
+from sqlalchemy import select
 
 from app.models.workflow_event import WorkflowEvent
 from app.services.database import async_session

@@ -1,4 +1,4 @@
-from app.agents.base import BaseAgent, AgentContext, AgentRecommendation
+from app.agents.base import AgentContext, AgentRecommendation, BaseAgent
 from app.services.qwen_client import qwen
 from app.services.settings import settings
 
@@ -21,7 +21,10 @@ class SalesAgent(BaseAgent):
 
     async def assess(self, context: AgentContext) -> AgentRecommendation:
         prompt = self._build_user_prompt(context)
-        prompt += "\n\nFocus on: customer intent, quotation recommendation, upselling opportunities, relationship assessment."
+        prompt += (
+            "\n\nFocus on: customer intent, quotation recommendation, "
+            "upselling opportunities, relationship assessment."
+        )
         raw = await qwen.assess(
             system_prompt=self._build_system_prompt(),
             user_prompt=prompt,

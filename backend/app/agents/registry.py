@@ -1,10 +1,10 @@
 from app.agents.base import BaseAgent
-from app.agents.sales import SalesAgent
 from app.agents.finance import FinanceAgent
 from app.agents.inventory import InventoryAgent
-from app.agents.procurement import ProcurementAgent
 from app.agents.logistics import LogisticsAgent
 from app.agents.operations_manager import OperationsManagerAgent
+from app.agents.procurement import ProcurementAgent
+from app.agents.sales import SalesAgent
 
 _registry: dict[str, type[BaseAgent]] = {
     "sales": SalesAgent,
@@ -25,7 +25,8 @@ def get_agent(agent_id: str) -> BaseAgent:
 
 def get_agents_for_workflow(workflow_type: str) -> list[BaseAgent]:
     if workflow_type == "order_fulfillment":
-        return [get_agent(aid) for aid in ["sales", "inventory", "procurement", "finance", "logistics", "operations_manager"]]
+        agent_ids = ["sales", "inventory", "procurement", "finance", "logistics", "operations_manager"]
+        return [get_agent(aid) for aid in agent_ids]
     raise ValueError(f"Unknown workflow type: {workflow_type}")
 
 

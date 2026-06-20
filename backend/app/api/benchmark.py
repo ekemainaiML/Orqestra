@@ -4,7 +4,7 @@ import uuid
 from typing import Any
 
 from fastapi import APIRouter, HTTPException
-from sqlalchemy import select, delete
+from sqlalchemy import delete, select
 
 from app.business_tools.inventory_service import check_availability, get_product_specs
 from app.business_tools.policy_engine import check_policy, get_all_policies
@@ -13,7 +13,6 @@ from app.business_tools.supplier_db import find_suppliers
 from app.memory.memory_service import MemoryService
 from app.models.benchmark_run import BenchmarkRun
 from app.models.case import Case
-from app.models.customer import Customer
 from app.services.database import async_session
 
 router = APIRouter(prefix="/benchmark", tags=["benchmark"])
@@ -108,7 +107,11 @@ def _build_single_recommendation(parsed: dict[str, Any], tools: dict[str, Any]) 
     return {
         "agent_id": "operations_manager",
         "recommendation": recommendation,
-        "confidence": round(0.5 + (pricing["estimated_margin_pct"] / 100) * 0.3 - (shortfall / max(parsed["quantity"], 1)) * 0.2, 2),
+        "confidence": round(
+            0.5 + (pricing["estimated_margin_pct"] / 100) * 0.3
+            - (shortfall / max(parsed["quantity"], 1)) * 0.2,
+            2,
+        ),
         "reasoning": "Single-agent assessment using pricing and inventory data.",
         "risks": risks,
         "alternatives": [s["name"] for s in tools["suppliers"][:2]],
@@ -126,37 +129,52 @@ def _build_org_recommendations(parsed: dict[str, Any], tools: dict[str, Any]) ->
     shortfall = inventory["shortfall"]
 
     recs.append({
-        "agent_id": "sales", "recommendation": f"Proceed with order. Customer request for {parsed['quantity']} units confirmed.",
+        "agent_id": "sales",
+        "recommendation": f"Proceed with order. Customer request for {parsed['quantity']} units confirmed.",
         "confidence": min(0.95, 0.6 + parsed["quantity"] / 1000 * 0.3),
-        "reasoning": "Sales assessment of customer requirements.", "risks": [], "alternatives": [], "evidence": [],
+        "reasoning": "Sales assessment of customer requirements.",
+        "risks": [], "alternatives": [], "evidence": [],
     })
+    margin_ok = pricing["estimated_margin_pct"] >= 15
     recs.append({
         "agent_id": "finance",
         "recommendation": f"Budget: ${pricing['subtotal']:,.0f} at {pricing['estimated_margin_pct']}% margin.",
         "confidence": min(0.9, 0.5 + pricing["estimated_margin_pct"] / 100),
-        "reasoning": "Financial viability assessment.", "risks": [] if pricing["estimated_margin_pct"] >= 15 else ["Margin below 15% threshold"],
+        "reasoning": "Financial viability assessment.",
+        "risks": [] if margin_ok else ["Margin below 15% threshold"],
         "alternatives": [], "evidence": [{"source": "pricing_engine", "data": pricing}],
     })
     recs.append({
         "agent_id": "inventory",
         "recommendation": f"Stock: {inventory['available']} available, {shortfall} shortfall.",
         "confidence": 0.7 if shortfall == 0 else 0.3,
-        "reasoning": "Inventory position assessment.", "risks": [f"Shortfall of {shortfall} units"] if shortfall > 0 else [],
+        "reasoning": "Inventory position assessment.",
+        "risks": [f"Shortfall of {shortfall} units"] if shortfall > 0 else [],
         "alternatives": [], "evidence": [{"source": "inventory_service", "data": inventory}],
     })
+    supplier_name = suppliers[0]["name"] if suppliers else "N/A"
+    supplier_lead = suppliers[0].get("lead_time_days", "N/A") if suppliers else "N/A"
     recs.append({
         "agent_id": "procurement",
-        "recommendation": f"Source from {suppliers[0]['name'] if suppliers else 'N/A'} (lead time: {suppliers[0].get('lead_time_days', 'N/A')} days).",
+        "recommendation": (
+            f"Source from {supplier_name} (lead time: {supplier_lead} days)."
+        ),
         "confidence": 0.75,
         "reasoning": "Supplier evaluation.", "risks": [],
         "alternatives": [s["name"] for s in suppliers[:2]],
         "evidence": [{"source": "supplier_db", "data": suppliers[0] if suppliers else {}}],
     })
+
+    urgent_label = " URGENT" if parsed["is_urgent"] else ""
+    log_risks = ["Customs clearance may add 3-5 days"] if parsed["is_government"] else []
     recs.append({
         "agent_id": "logistics",
-        "recommendation": f"Delivery in {parsed['deadline_days']} days{' URGENT' if parsed['is_urgent'] else ''} via standard freight.",
+        "recommendation": (
+            f"Delivery in {parsed['deadline_days']} days{urgent_label} via standard freight."
+        ),
         "confidence": 0.5 if parsed["is_urgent"] and shortfall > 0 else 0.85,
-        "reasoning": "Logistics feasibility.", "risks": ["Customs clearance may add 3-5 days"] if parsed["is_government"] else [],
+        "reasoning": "Logistics feasibility.",
+        "risks": log_risks,
         "alternatives": [], "evidence": [],
     })
 
@@ -168,7 +186,10 @@ def _build_org_recommendations(parsed: dict[str, Any], tools: dict[str, Any]) ->
             f"Total: ${pricing['subtotal']:,.0f}. Margin: {pricing['estimated_margin_pct']}%."
         ),
         "confidence": round(0.6 + (pricing["estimated_margin_pct"] / 100) * 0.3, 2),
-        "reasoning": "Synthesized from all department inputs. Policy compliance verified." if poly_compliance else "Policy exceptions noted.",
+        "reasoning": (
+            "Synthesized from all department inputs. Policy compliance verified."
+            if poly_compliance else "Policy exceptions noted."
+        ),
         "risks": [] if shortfall == 0 else [f"Procurement required for {shortfall} units — monitor lead time"],
         "alternatives": [], "evidence": [{"source": "policy_engine", "data": policies}],
     })
@@ -240,9 +261,6 @@ async def run_benchmark(case_id: str):
         case = await session.get(Case, uuid.UUID(case_id))
         if not case:
             raise HTTPException(status_code=404, detail="Case not found")
-
-        customer = await session.get(Customer, case.customer_id)
-        customer_info = {"id": str(customer.id), "name": customer.name, "company": customer.company} if customer else {}
 
         await session.execute(
             delete(BenchmarkRun).where(BenchmarkRun.case_id == uuid.UUID(case_id))

@@ -3,7 +3,7 @@ import { useEffect, useState, useCallback } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { api } from "@/lib/api";
-import type { CaseDetail, WorkflowEvent } from "@/lib/types";
+import type { CaseDetail } from "@/lib/types";
 import { StatusBadge } from "@/components/StatusBadge";
 import {
   ArrowLeft,

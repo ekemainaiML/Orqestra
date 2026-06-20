@@ -3,7 +3,6 @@ import uuid
 from pathlib import Path
 
 from fastapi import APIRouter, HTTPException
-from sqlalchemy import select
 
 from app.events.publisher import publish_event
 from app.models.case import Case

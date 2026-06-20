@@ -1,11 +1,9 @@
 import asyncio
-import uuid
 from typing import Any
 
 from app.agents.base import AgentContext, AgentRecommendation
 from app.agents.registry import get_operational_agents
 from app.memory.memory_service import MemoryService
-from app.services.qwen_client import qwen
 
 memory_service = MemoryService()
 

@@ -1,6 +1,6 @@
 from typing import Any
 
-from sqlalchemy import select, and_
+from sqlalchemy import and_, select
 
 from app.models.memory import Memory
 from app.services.database import async_session

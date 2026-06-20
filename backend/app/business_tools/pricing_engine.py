@@ -1,6 +1,5 @@
 from typing import Any
 
-
 BASE_UNIT_PRICE = 195.00  # USD per solar street light unit
 VOLUME_DISCOUNT_THRESHOLD = 250
 VOLUME_DISCOUNT_RATE = 0.10  # 10%

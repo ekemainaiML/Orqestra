@@ -1,6 +1,6 @@
 from typing import Any
 
-from sqlalchemy import func, select, and_
+from sqlalchemy import func, select
 
 from app.models.case import Case
 from app.models.workflow_event import WorkflowEvent

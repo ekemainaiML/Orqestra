@@ -1,7 +1,6 @@
 from typing import Any
 
-from app.agents.base import AgentContext, AgentRecommendation
-from app.agents.operations_manager import OperationsManagerAgent
+from app.agents.base import AgentContext
 from app.agents.registry import get_agent
 from app.memory.memory_service import MemoryService
 
