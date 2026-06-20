@@ -68,12 +68,12 @@ async def get_case(case_id: str):
 @router.post("", response_model=CaseResponse)
 async def create_case(data: CaseCreate):
     async with async_session() as session:
-        customer = await session.get(Customer, uuid.UUID(data.customer_id))
+        customer = await session.get(Customer, data.customer_id)
         if not customer:
             raise HTTPException(status_code=404, detail="Customer not found")
 
         case = Case(
-            customer_id=uuid.UUID(data.customer_id),
+            customer_id=data.customer_id,
             request_text=data.request_text,
             workflow_type=data.workflow_type,
         )
@@ -82,7 +82,7 @@ async def create_case(data: CaseCreate):
         await session.refresh(case)
 
         await publish_event(str(case.id), "case_created", "system", {
-            "customer_id": data.customer_id,
+            "customer_id": str(data.customer_id),
             "workflow_type": data.workflow_type,
         })
 

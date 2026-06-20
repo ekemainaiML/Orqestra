@@ -2,15 +2,26 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { api } from "@/lib/api";
+import { Loader2, Send, ArrowLeft } from "lucide-react";
+import Link from "next/link";
+
+const CUSTOMER_OPTIONS = [
+  { id: "a1b2c3d4-0001-4000-8000-000000000001", name: "Sarah Mitchell — Greenfield Municipal Council" },
+  { id: "a1b2c3d4-0001-4000-8000-000000000002", name: "James Okafor — NovaTech Solutions" },
+  { id: "a1b2c3d4-0001-4000-8000-000000000003", name: "Chioma Adeyemi — RenPower Africa" },
+  { id: "a1b2c3d4-0001-4000-8000-000000000004", name: "David Chen — Sunlight Initiative" },
+];
 
 export default function NewCasePage() {
   const [customerId, setCustomerId] = useState("");
   const [requestText, setRequestText] = useState("");
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
   const router = useRouter();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError("");
     setLoading(true);
     try {
       const result = await api.cases.create({
@@ -18,46 +29,118 @@ export default function NewCasePage() {
         request_text: requestText,
       });
       router.push(`/cases/${result.id}`);
-    } catch {
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Failed to create case"
+      );
       setLoading(false);
     }
   };
 
+  const selectedCustomer = CUSTOMER_OPTIONS.find(
+    (c) => c.id === customerId
+  );
+
   return (
-    <div className="min-h-screen p-8">
-      <h1 className="text-2xl font-bold mb-6">New Business Request</h1>
-      <form onSubmit={handleSubmit} className="max-w-lg space-y-4">
+    <div className="max-w-2xl mx-auto space-y-8">
+      <div>
+        <Link
+          href="/"
+          className="btn-ghost inline-flex items-center gap-1.5 mb-3"
+        >
+          <ArrowLeft size={14} />
+          Back to Dashboard
+        </Link>
+        <h1 className="text-2xl font-bold text-text-primary">
+          New Business Request
+        </h1>
+        <p className="text-sm text-text-muted mt-1">
+          Submit a customer order for multi-agent deliberation
+        </p>
+      </div>
+
+      <form onSubmit={handleSubmit} className="space-y-5">
         <div>
-          <label className="block text-sm text-gray-400 mb-1">
-            Customer ID
+          <label htmlFor="customer" className="label">
+            Customer
           </label>
-          <input
-            value={customerId}
-            onChange={(e) => setCustomerId(e.target.value)}
-            className="w-full px-3 py-2 bg-gray-800 rounded border border-gray-700"
-            placeholder="a1b2c3d4-0001-4000-8000-000000000001"
-            required
-          />
+          <div className="relative">
+            <select
+              id="customer"
+              value={customerId}
+              onChange={(e) => setCustomerId(e.target.value)}
+              className="input appearance-none cursor-pointer"
+              required
+            >
+              <option value="" disabled>
+                Select a customer...
+              </option>
+              {CUSTOMER_OPTIONS.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3 text-text-muted">
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 16 16"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+              >
+                <path d="M4 6l4 4 4-4" />
+              </svg>
+            </div>
+          </div>
+          {selectedCustomer && (
+            <p className="text-xs text-text-muted mt-1.5">
+              ID: {selectedCustomer.id}
+            </p>
+          )}
         </div>
+
         <div>
-          <label className="block text-sm text-gray-400 mb-1">
-            Request Text
+          <label htmlFor="request" className="label">
+            Request Details
           </label>
           <textarea
+            id="request"
             value={requestText}
             onChange={(e) => setRequestText(e.target.value)}
-            className="w-full px-3 py-2 bg-gray-800 rounded border border-gray-700 h-32"
-            placeholder="Describe the customer's request..."
+            className="input h-36 resize-none"
+            placeholder="Describe the customer's order in detail. Include product, quantity, delivery timeline, and any special requirements..."
             required
           />
+          <p className="text-xs text-text-muted mt-1.5 text-right">
+            {requestText.length} characters
+          </p>
         </div>
-        <button
-          type="submit"
-          disabled={loading}
-          className="px-4 py-2 bg-blue-600 rounded hover:bg-blue-700 disabled:opacity-50"
-        >
-          {loading ? "Creating..." : "Create Case"}
-        </button>
+
+        {error && (
+          <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-sm text-red-400">
+            {error}
+          </div>
+        )}
+
+        <div className="flex items-center gap-3 pt-2">
+          <button
+            type="submit"
+            disabled={loading || !customerId || !requestText.trim()}
+            className="btn-primary flex items-center gap-2"
+          >
+            {loading ? (
+              <Loader2 size={16} className="animate-spin" />
+            ) : (
+              <Send size={16} />
+            )}
+            {loading ? "Creating..." : "Submit for Deliberation"}
+          </button>
+          <Link href="/" className="btn-secondary">
+            Cancel
+          </Link>
+        </div>
       </form>
     </div>
   );

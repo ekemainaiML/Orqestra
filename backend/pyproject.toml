@@ -25,6 +25,29 @@ dev = [
     "pytest-cov>=6.0.0",
 ]
 
+[tool.ruff]
+line-length = 120
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "W", "UP"]
+
+[tool.ruff.lint.per-file-ignores]
+"__init__.py" = ["F401"]
+
+[tool.mypy]
+python_version = "3.12"
+ignore_missing_imports = true
+strict = false
+
+[tool.pytest.ini_options]
+asyncio_default_fixture_loop_scope = "session"
+testpaths = ["tests"]
+
+[tool.coverage.run]
+source = ["app"]
+omit = ["app/main.py", "app/models/*", "app/services/database.py"]
+
 [tool.setuptools.packages.find]
 exclude = ["alembic", "seed", "tests"]
 

@@ -1,8 +1,64 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useParams } from "next/navigation";
+import Link from "next/link";
 import { api } from "@/lib/api";
 import type { BenchmarkResult } from "@/lib/types";
+import {
+  ArrowLeft,
+  BarChart3,
+  Brain,
+  Target,
+  AlertTriangle,
+  Lightbulb,
+  Clock,
+  Database,
+  Zap,
+  Loader2,
+} from "lucide-react";
+
+const METRICS = [
+  {
+    key: "confidence" as const,
+    label: "Decision Confidence",
+    icon: Target,
+    unit: "%",
+    format: (v: number) => `${(v * 100).toFixed(0)}%`,
+    higher: true,
+  },
+  {
+    key: "risks_found" as const,
+    label: "Risks Identified",
+    icon: AlertTriangle,
+    unit: "",
+    format: (v: number) => `${v}`,
+    higher: true,
+  },
+  {
+    key: "factors_considered" as const,
+    label: "Factors Considered",
+    icon: Lightbulb,
+    unit: "",
+    format: (v: number) => `${v}`,
+    higher: true,
+  },
+  {
+    key: "reasoning_time_s" as const,
+    label: "Reasoning Time",
+    icon: Clock,
+    unit: "s",
+    format: (v: number) => `${v.toFixed(1)}s`,
+    higher: false,
+  },
+  {
+    key: "memory_used" as const,
+    label: "Memory Used",
+    icon: Database,
+    unit: "entries",
+    format: (v: number) => `${v}`,
+    higher: true,
+  },
+];
 
 export default function BenchmarkPage() {
   const params = useParams();
@@ -10,85 +66,237 @@ export default function BenchmarkPage() {
   const [benchmark, setBenchmark] = useState<BenchmarkResult | null>(null);
   const [running, setRunning] = useState(false);
 
+  const load = useCallback(
+    () => api.benchmark.get(caseId).then(setBenchmark),
+    [caseId]
+  );
+
   useEffect(() => {
-    api.benchmark.get(caseId).then(setBenchmark);
-  }, [caseId]);
+    load();
+  }, [load]);
 
   const handleRun = async () => {
     setRunning(true);
     await api.benchmark.run(caseId);
-    const result = await api.benchmark.get(caseId);
-    setBenchmark(result);
+    await load();
     setRunning(false);
   };
 
+  const single = benchmark?.single_agent;
+  const org = benchmark?.organization;
+
   return (
-    <div className="min-h-screen p-8">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold">Side-by-Side Benchmark</h1>
-        <button
-          onClick={handleRun}
-          disabled={running}
-          className="px-4 py-2 bg-blue-600 rounded hover:bg-blue-700 disabled:opacity-50"
+    <div className="space-y-6">
+      <div>
+        <Link
+          href={`/cases/${caseId}`}
+          className="btn-ghost inline-flex items-center gap-1.5 mb-3"
         >
-          {running ? "Running..." : "Run Benchmark"}
-        </button>
+          <ArrowLeft size={14} />
+          Back to Case
+        </Link>
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-text-primary">
+              Benchmark Comparison
+            </h1>
+            <p className="text-sm text-text-muted mt-1">
+              Side-by-side: single-agent baseline vs Orqestra organization
+            </p>
+          </div>
+          <button
+            onClick={handleRun}
+            disabled={running}
+            className="btn-primary flex items-center gap-1.5"
+          >
+            {running ? (
+              <Loader2 size={14} className="animate-spin" />
+            ) : (
+              <Zap size={14} />
+            )}
+            {running ? "Running..." : "Run Benchmark"}
+          </button>
+        </div>
       </div>
 
       {benchmark?.comparison && (
-        <div className="grid grid-cols-3 gap-4 mb-6">
-          <ComparisonCard
-            label="Confidence"
-            single={benchmark.single_agent?.confidence ?? 0}
-            org={benchmark.organization?.confidence ?? 0}
-            gain={benchmark.comparison.confidence_gain}
-          />
-          <ComparisonCard
-            label="Risks Found"
-            single={benchmark.single_agent?.risks_found ?? 0}
-            org={benchmark.organization?.risks_found ?? 0}
-            gain={benchmark.comparison.risk_detection_improvement}
-          />
-          <ComparisonCard
-            label="Memory Used"
-            single={benchmark.single_agent?.memory_used ?? 0}
-            org={benchmark.organization?.memory_used ?? 0}
-            gain={benchmark.comparison.memory_utilization_gain}
-          />
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {METRICS.slice(0, 3).map((m) => {
+            const sVal = single?.[m.key] ?? 0;
+            const oVal = org?.[m.key] ?? 0;
+            const gain = (() => {
+              switch (m.key) {
+                case "confidence":
+                  return benchmark.comparison?.confidence_gain ?? 0;
+                case "risks_found":
+                  return benchmark.comparison?.risk_detection_improvement ?? 0;
+                case "factors_considered":
+                  return benchmark.comparison?.factors_considered_gain ?? 0;
+                default:
+                  return oVal - sVal;
+              }
+            })();
+            const Icon = m.icon;
+
+            return (
+              <div key={m.key} className="card">
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="w-8 h-8 rounded-lg bg-brand-500/10 flex items-center justify-center">
+                    <Icon size={15} className="text-brand-400" />
+                  </div>
+                  <span className="text-xs font-medium text-text-muted uppercase tracking-wider">
+                    {m.label}
+                  </span>
+                </div>
+                <div className="flex items-end justify-between mb-2">
+                  <div className="space-y-0.5">
+                    <span className="text-xl font-bold text-text-primary">
+                      {m.format(oVal)}
+                    </span>
+                    <span className="text-xs text-emerald-400 flex items-center gap-0.5 ml-0.5">
+                      <Zap size={12} />
+                      {gain > 0 ? "+" : ""}
+                      {m.key === "confidence"
+                        ? `${(gain * 100).toFixed(0)}%`
+                        : gain.toFixed(1)}{" "}
+                      vs single
+                    </span>
+                  </div>
+                  <div className="text-right">
+                    <span className="text-xs text-text-muted block">
+                      Single: {m.format(sVal)}
+                    </span>
+                  </div>
+                </div>
+                <div className="h-2 rounded-full bg-surface-4 overflow-hidden relative">
+                  <div
+                    className="h-full rounded-full bg-text-muted/30 absolute left-0 top-0"
+                    style={{
+                      width: `${Math.min((sVal / Math.max(sVal, oVal)) * 100, 100)}%`,
+                    }}
+                  />
+                  <div
+                    className="h-full rounded-full bg-brand-500 absolute left-0 top-0 transition-all duration-500"
+                    style={{
+                      width: `${Math.min((oVal / Math.max(sVal, oVal)) * 100, 100)}%`,
+                      zIndex: 1,
+                    }}
+                  />
+                </div>
+              </div>
+            );
+          })}
         </div>
       )}
 
-      <div className="grid grid-cols-2 gap-4">
-        <div className="bg-gray-900 rounded-lg p-4 border border-gray-800">
-          <h3 className="text-sm font-semibold text-gray-400 mb-3">
-            Single Agent Baseline
-          </h3>
-          {benchmark?.single_agent ? (
-            <div className="text-sm text-gray-300 space-y-1">
-              <p>Confidence: {(benchmark.single_agent.confidence * 100).toFixed(0)}%</p>
-              <p>Risks: {benchmark.single_agent.risks_found}</p>
-              <p>Factors: {benchmark.single_agent.factors_considered}</p>
-              <p>Reasoning: {benchmark.single_agent.reasoning_time_s}s</p>
-              <p>Memory: {benchmark.single_agent.memory_used} entries</p>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+        <div className="card">
+          <div className="flex items-center gap-2.5 mb-5">
+            <div className="w-9 h-9 rounded-lg bg-blue-500/10 flex items-center justify-center">
+              <Brain size={18} className="text-blue-400" />
+            </div>
+            <div>
+              <h3 className="text-sm font-semibold text-text-primary">
+                Single Agent Baseline
+              </h3>
+              <p className="text-[10px] text-text-muted uppercase tracking-wider">
+                Individual LLM Assessment
+              </p>
+            </div>
+          </div>
+          {single ? (
+            <div className="space-y-3">
+              {METRICS.map((m) => {
+                const Icon = m.icon;
+                const val = single[m.key];
+                return (
+                  <div
+                    key={m.key}
+                    className="flex items-center justify-between py-1.5"
+                  >
+                    <div className="flex items-center gap-2">
+                      <Icon size={13} className="text-text-muted" />
+                      <span className="text-xs text-text-secondary">
+                        {m.label}
+                      </span>
+                    </div>
+                    <span className="text-sm font-mono text-text-primary">
+                      {m.format(val)}
+                    </span>
+                  </div>
+                );
+              })}
             </div>
           ) : (
-            <p className="text-gray-600 text-sm">Run benchmark to see results</p>
+            <EmptyBenchmark />
           )}
         </div>
-        <div className="bg-gray-900 rounded-lg p-4 border border-gray-800">
-          <h3 className="text-sm font-semibold text-gray-400 mb-3">
-            Orqestra Organization
-          </h3>
-          {benchmark?.organization ? (
-            <div className="text-sm text-gray-300 space-y-1">
-              <p>Confidence: {(benchmark.organization.confidence * 100).toFixed(0)}%</p>
-              <p>Risks: {benchmark.organization.risks_found}</p>
-              <p>Factors: {benchmark.organization.factors_considered}</p>
-              <p>Reasoning: {benchmark.organization.reasoning_time_s}s</p>
-              <p>Memory: {benchmark.organization.memory_used} entries</p>
+
+        <div className="card border-brand-500/20">
+          <div className="flex items-center gap-2.5 mb-5">
+            <div className="w-9 h-9 rounded-lg bg-brand-500/10 flex items-center justify-center">
+              <BarChart3 size={18} className="text-brand-400" />
+            </div>
+            <div>
+              <h3 className="text-sm font-semibold text-text-primary">
+                Orqestra Organization
+              </h3>
+              <p className="text-[10px] text-text-muted uppercase tracking-wider">
+                Multi-Agent Governance
+              </p>
+            </div>
+          </div>
+          {org ? (
+            <div className="space-y-3">
+              {METRICS.map((m) => {
+                const Icon = m.icon;
+                const val = org[m.key];
+                const sVal = single?.[m.key] ?? 0;
+                const diff = val - sVal;
+                return (
+                  <div
+                    key={m.key}
+                    className="flex items-center justify-between py-1.5"
+                  >
+                    <div className="flex items-center gap-2">
+                      <Icon size={13} className="text-brand-400" />
+                      <span className="text-xs text-text-secondary">
+                        {m.label}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-mono text-text-primary">
+                        {m.format(val)}
+                      </span>
+                      {single && (
+                        <span
+                          className={`text-[10px] font-medium ${
+                            m.higher
+                              ? diff > 0
+                                ? "text-emerald-400"
+                                : diff < 0
+                                  ? "text-red-400"
+                                  : "text-text-muted"
+                              : diff < 0
+                                ? "text-emerald-400"
+                                : diff > 0
+                                  ? "text-red-400"
+                                  : "text-text-muted"
+                          }`}
+                        >
+                          {diff > 0 ? "+" : ""}
+                          {m.key === "confidence"
+                            ? `${(diff * 100).toFixed(0)}%`
+                            : diff.toFixed(1)}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           ) : (
-            <p className="text-gray-600 text-sm">Run benchmark to see results</p>
+            <EmptyBenchmark />
           )}
         </div>
       </div>
@@ -96,32 +304,13 @@ export default function BenchmarkPage() {
   );
 }
 
-function ComparisonCard({
-  label,
-  single,
-  org,
-  gain,
-}: {
-  label: string;
-  single: number;
-  org: number;
-  gain: number;
-}) {
+function EmptyBenchmark() {
   return (
-    <div className="bg-gray-900 rounded-lg p-4 border border-gray-800">
-      <div className="text-sm text-gray-400">{label}</div>
-      <div className="flex justify-between mt-2 text-sm">
-        <span className="text-gray-500">Single: {single}</span>
-        <span className="text-gray-300">Orqestra: {org}</span>
-      </div>
-      <div
-        className={`text-xs mt-1 ${
-          gain > 0 ? "text-green-400" : gain < 0 ? "text-red-400" : "text-gray-500"
-        }`}
-      >
-        {gain > 0 ? "+" : ""}
-        {gain} improvement
-      </div>
+    <div className="py-8 text-center">
+      <BarChart3 size={20} className="text-text-muted mx-auto mb-2" />
+      <p className="text-xs text-text-muted">
+        Run benchmark to see comparison
+      </p>
     </div>
   );
 }

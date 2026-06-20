@@ -1,3 +1,5 @@
+import { Brain, CheckCircle2, Clock, Ban, AlertCircle } from "lucide-react";
+
 interface AgentCardProps {
   name: string;
   role: string;
@@ -6,6 +8,37 @@ interface AgentCardProps {
   recommendation?: string;
 }
 
+const STATUS_CONFIG = {
+  pending: {
+    icon: Clock,
+    color: "text-text-muted",
+    bg: "bg-surface-4",
+    border: "border-border",
+    label: "Pending",
+  },
+  assessing: {
+    icon: Brain,
+    color: "text-blue-400",
+    bg: "bg-blue-500/5",
+    border: "border-blue-500/20",
+    label: "Assessing",
+  },
+  completed: {
+    icon: CheckCircle2,
+    color: "text-emerald-400",
+    bg: "bg-emerald-500/5",
+    border: "border-emerald-500/20",
+    label: "Completed",
+  },
+  unavailable: {
+    icon: Ban,
+    color: "text-red-400",
+    bg: "bg-red-500/5",
+    border: "border-red-500/20",
+    label: "Unavailable",
+  },
+};
+
 export function AgentCard({
   name,
   role,
@@ -13,29 +46,53 @@ export function AgentCard({
   confidence,
   recommendation,
 }: AgentCardProps) {
-  const statusColors: Record<string, string> = {
-    pending: "bg-gray-700",
-    assessing: "bg-yellow-600 animate-pulse",
-    completed: "bg-green-600",
-    unavailable: "bg-red-600",
-  };
+  const cfg = STATUS_CONFIG[status];
 
   return (
-    <div className="bg-gray-900 rounded-lg p-4 border border-gray-800">
-      <div className="flex items-center justify-between mb-2">
-        <div>
-          <h4 className="font-medium text-sm">{name}</h4>
-          <p className="text-xs text-gray-500">{role}</p>
+    <div
+      className={`rounded-xl border p-4 transition-all duration-300 ${cfg.bg} ${cfg.border}`}
+    >
+      <div className="flex items-start justify-between mb-3">
+        <div className="flex items-center gap-2.5">
+          <div className={`w-8 h-8 rounded-lg bg-surface-4 flex items-center justify-center ${cfg.color}`}>
+            <cfg.icon size={16} />
+          </div>
+          <div>
+            <h4 className="text-sm font-semibold text-text-primary">{name}</h4>
+            <p className="text-xs text-text-muted">{role}</p>
+          </div>
         </div>
-        <div className={`w-2 h-2 rounded-full ${statusColors[status]}`} />
+        <span className={`text-[10px] font-medium ${cfg.color}`}>
+          {cfg.label}
+        </span>
       </div>
-      {confidence !== undefined && (
-        <div className="text-xs text-gray-400">
-          Confidence: {(confidence * 100).toFixed(0)}%
+
+      {status === "assessing" && (
+        <div className="flex items-center gap-2 text-xs text-text-muted">
+          <AlertCircle size={12} className="text-blue-400 animate-pulse" />
+          <span>Consulting knowledge base...</span>
         </div>
       )}
+
+      {confidence !== undefined && (
+        <div className="mb-2">
+          <div className="flex items-center justify-between text-xs mb-1">
+            <span className="text-text-muted">Confidence</span>
+            <span className="font-medium text-text-primary">
+              {(confidence * 100).toFixed(0)}%
+            </span>
+          </div>
+          <div className="h-1.5 rounded-full bg-surface-4 overflow-hidden">
+            <div
+              className="h-full rounded-full bg-brand-500 transition-all duration-500"
+              style={{ width: `${confidence * 100}%` }}
+            />
+          </div>
+        </div>
+      )}
+
       {recommendation && (
-        <p className="text-xs text-gray-500 mt-1 line-clamp-2">
+        <p className="text-xs text-text-secondary leading-relaxed line-clamp-2">
           {recommendation}
         </p>
       )}

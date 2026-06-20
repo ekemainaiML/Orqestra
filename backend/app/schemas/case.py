@@ -1,3 +1,4 @@
+import uuid
 from datetime import datetime
 from typing import Any
 
@@ -18,7 +19,7 @@ class CaseResponse(BaseModel):
 
 
 class CaseCreate(BaseModel):
-    customer_id: str
+    customer_id: uuid.UUID
     request_text: str
     workflow_type: str = "order_fulfillment"
 

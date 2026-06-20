@@ -4,13 +4,16 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api import cases, demo, events, benchmark, dashboard
+from app.middleware.error_handler import ErrorHandlerMiddleware
 from app.models import Base
 from app.services.database import engine
+from app.services.logging import RequestLoggingMiddleware, setup_logging
 from app.services.settings import settings
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    setup_logging(settings.environment)
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
     yield
@@ -30,6 +33,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+app.add_middleware(ErrorHandlerMiddleware)
+app.add_middleware(RequestLoggingMiddleware)
 
 app.include_router(cases.router)
 app.include_router(demo.router)
