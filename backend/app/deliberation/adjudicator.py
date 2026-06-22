@@ -35,13 +35,13 @@ def _check_hard_constraints(
                                 })
                         except ValueError:
                             pass
-        if policy_id == "budget_compliance" and "budget" in rec_text:
-            violations.append({
-                "policy_id": policy_id,
-                "rule": rule,
-                "agent": rec.get("agent_id", "unknown"),
-                "detail": "Budget compliance requires explicit confirmation",
-            })
+            if policy_id == "budget_compliance" and "budget" in rec_text:
+                violations.append({
+                    "policy_id": policy_id,
+                    "rule": rule,
+                    "agent": rec.get("agent_id", "unknown"),
+                    "detail": "Budget compliance requires explicit confirmation",
+                })
     return violations
 
 

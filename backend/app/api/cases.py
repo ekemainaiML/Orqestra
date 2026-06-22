@@ -46,8 +46,24 @@ async def get_workflows(session: AsyncSession = Depends(get_session)):
 
 
 @router.get("", response_model=list[CaseResponse])
-async def list_cases(session: AsyncSession = Depends(get_session)):
-    result = await session.execute(select(Case).order_by(Case.created_at.desc()))
+@router.get("")
+async def list_cases(
+    session: AsyncSession = Depends(get_session),
+    search: str | None = None,
+    status: str | None = None,
+    workflow_type: str | None = None,
+    limit: int = 50,
+    offset: int = 0,
+):
+    stmt = select(Case)
+    if search:
+        stmt = stmt.where(Case.request_text.ilike(f"%{search}%"))
+    if status:
+        stmt = stmt.where(Case.status == status)
+    if workflow_type:
+        stmt = stmt.where(Case.workflow_type == workflow_type)
+    stmt = stmt.order_by(Case.created_at.desc()).offset(offset).limit(limit)
+    result = await session.execute(stmt)
     cases = result.scalars().all()
     return [
         CaseResponse(

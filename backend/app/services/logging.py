@@ -1,5 +1,6 @@
 import logging
 import sys
+import time
 import uuid
 from collections.abc import Awaitable, Callable
 
@@ -11,6 +12,7 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next: Callable[[Request], Awaitable[Response]]) -> Response:
         request_id = str(uuid.uuid4())[:8]
         request.state.request_id = request_id
+        start = time.monotonic()
 
         logger = logging.getLogger("orqestra.access")
         logger.info(
@@ -20,16 +22,28 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
 
         try:
             response = await call_next(request)
+            duration_ms = (time.monotonic() - start) * 1000
             logger.info(
-                "request_id=%s method=%s path=%s status=%d",
-                request_id, request.method, request.url.path, response.status_code,
+                "request_id=%s method=%s path=%s status=%d duration_ms=%.0f",
+                request_id, request.method, request.url.path, response.status_code, duration_ms,
             )
+            _record_metrics(response.status_code, duration_ms)
         except Exception:
-            logger.exception("request_id=%s method=%s path=%s", request_id, request.method, request.url.path)
+            duration_ms = (time.monotonic() - start) * 1000
+            logger.exception("request_id=%s method=%s path=%s duration_ms=%.0f", request_id, request.method, request.url.path, duration_ms)
+            _record_metrics(500, duration_ms, error_type="unhandled")
             raise
 
         response.headers["X-Request-ID"] = request_id
         return response
+
+
+def _record_metrics(status_code: int, duration_ms: float, error_type: str | None = None):
+    try:
+        from app.services.metrics import metrics
+        metrics.record_request(status_code, duration_ms, error_type)
+    except ImportError:
+        pass
 
 
 def setup_logging(environment: str = "development") -> None:

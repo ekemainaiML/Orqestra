@@ -45,6 +45,40 @@ class TestHardConstraintChecker:
         violations = _check_hard_constraints(policies, recs)
         assert violations == []
 
+    def test_budget_compliance_detected(self):
+        policies = [{"id": "budget_compliance", "rule": "budget must be confirmed", "hard_constraint": True}]
+        recs = [{"agent_id": "finance", "recommendation": "The budget allocation is sufficient", "reasoning": "Within limits"}]
+        violations = _check_hard_constraints(policies, recs)
+        assert len(violations) == 1
+        assert violations[0]["policy_id"] == "budget_compliance"
+
+    def test_budget_compliance_ignored_when_no_budget_keyword(self):
+        policies = [{"id": "budget_compliance", "rule": "budget must be confirmed", "hard_constraint": True}]
+        recs = [{"agent_id": "finance", "recommendation": "Cost is within project scope", "reasoning": "All good"}]
+        violations = _check_hard_constraints(policies, recs)
+        assert violations == []
+
+    def test_empty_recommendations_no_crash(self):
+        policies = [{"id": "minimum_margin", "rule": "margin >= 15%", "hard_constraint": True}]
+        violations = _check_hard_constraints(policies, [])
+        assert violations == []
+
+    def test_no_crash_when_recommendation_missing_keys(self):
+        policies = [{"id": "minimum_margin", "rule": "margin >= 15%", "hard_constraint": True}]
+        recs = [{"agent_id": "finance"}]  # missing recommendation, reasoning, risks
+        violations = _check_hard_constraints(policies, recs)
+        assert violations == []
+
+    def test_multiple_agents_budget_violations(self):
+        policies = [{"id": "budget_compliance", "rule": "budget must be confirmed", "hard_constraint": True}]
+        recs = [
+            {"agent_id": "sales", "recommendation": "Budget needs review", "reasoning": "Over by 10%"},
+            {"agent_id": "finance", "recommendation": "No budget concerns", "reasoning": "Within limits"},
+        ]
+        violations = _check_hard_constraints(policies, recs)
+        assert len(violations) == 2
+        assert all(v["policy_id"] == "budget_compliance" for v in violations)
+
 
 class TestDirectivesFlow:
 

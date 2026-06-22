@@ -2,6 +2,8 @@
 import Link from "next/link";
 import {
   Activity,
+  Search,
+  X,
   Users,
   CheckCircle,
   AlertTriangle,
@@ -13,23 +15,51 @@ import {
 import { useDashboardMetrics } from "@/hooks/useDashboardMetrics";
 import { MetricCard } from "@/components/MetricCard";
 import { StatusBadge } from "@/components/StatusBadge";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { api } from "@/lib/api";
 import type { Case, WorkflowSummary } from "@/lib/types";
+
+const STATUS_OPTIONS = ["", "created", "independent_assessment", "adjudication", "approval_pending", "completed", "escalated"] as const;
 
 export default function DashboardPage() {
   const { metrics, loading } = useDashboardMetrics();
   const [cases, setCases] = useState<Case[]>([]);
   const [wfNames, setWfNames] = useState<Record<string, string>>({});
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("");
+  const [wfFilter, setWfFilter] = useState("");
+
+  const fetchCases = useCallback(async () => {
+    const params = new URLSearchParams();
+    if (search) params.set("search", search);
+    if (statusFilter) params.set("status", statusFilter);
+    if (wfFilter) params.set("workflow_type", wfFilter);
+    try {
+      const data = await api.cases.list(params.toString());
+      setCases(data);
+    } catch { /* ignore */ }
+  }, [search, statusFilter, wfFilter]);
 
   useEffect(() => {
-    api.cases.list().then(setCases).catch(() => {});
+    const timer = setTimeout(fetchCases, 300);
+    return () => clearTimeout(timer);
+  }, [fetchCases]);
+
+  useEffect(() => {
     api.workflows.list().then((r) => {
       const map: Record<string, string> = {};
       for (const w of r.workflows) map[w.id] = w.name;
       setWfNames(map);
     }).catch(() => {});
   }, []);
+
+  const clearFilters = useCallback(() => {
+    setSearch("");
+    setStatusFilter("");
+    setWfFilter("");
+  }, []);
+
+  const hasFilters = search || statusFilter || wfFilter;
 
   return (
     <div className="space-y-8">
@@ -90,7 +120,7 @@ export default function DashboardPage() {
         <div className="lg:col-span-2">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-semibold text-text-primary">
-              Active Cases
+              {hasFilters ? "Filtered Cases" : "Active Cases"}
             </h2>
             <Link
               href="/cases/new"
@@ -99,6 +129,48 @@ export default function DashboardPage() {
               <Zap size={14} />
               New Case
             </Link>
+          </div>
+
+          <div className="flex items-center gap-2 mb-3 flex-wrap">
+            <div className="relative flex-1 min-w-[200px] max-w-sm">
+              <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-text-muted" />
+              <input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search cases..."
+                className="input pl-8 text-sm h-10"
+              />
+              {search && (
+                <button onClick={() => setSearch("")} className="absolute right-2 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-primary">
+                  <X size={14} />
+                </button>
+              )}
+            </div>
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="input text-sm h-10 w-[150px]"
+            >
+              <option value="">All statuses</option>
+              {STATUS_OPTIONS.filter(Boolean).map((s) => (
+                <option key={s} value={s}>{s.replace(/_/g, " ")}</option>
+              ))}
+            </select>
+            <select
+              value={wfFilter}
+              onChange={(e) => setWfFilter(e.target.value)}
+              className="input text-sm h-10 w-[170px]"
+            >
+              <option value="">All workflows</option>
+              {Object.entries(wfNames).map(([id, name]) => (
+                <option key={id} value={id}>{name}</option>
+              ))}
+            </select>
+            {hasFilters && (
+              <button onClick={clearFilters} className="btn-ghost text-xs h-8 flex items-center gap-1">
+                <X size={12} /> Clear
+              </button>
+            )}
           </div>
 
           <div className="card p-0 overflow-hidden">

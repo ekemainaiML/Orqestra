@@ -17,7 +17,7 @@ const EXECUTIVE_ROLES = new Set(["operations_manager", "procurement_director"]);
 export function DepartmentAssessments({ events }: { events: WorkflowEvent[] }) {
   const recs = events
     .filter((e) => e.event_type === "recommendation_submitted")
-    .map((e) => ({ actor: e.actor, payload: e.payload as unknown as RecPayload, timestamp: e.timestamp }));
+    .map((e) => ({ id: e.id, actor: e.actor, payload: e.payload as unknown as RecPayload, timestamp: e.timestamp }));
 
   if (recs.length === 0) return null;
 
@@ -46,7 +46,7 @@ export function DepartmentAssessments({ events }: { events: WorkflowEvent[] }) {
 
       <div className="space-y-2">
         {operational.map((rec) => (
-          <DepartmentCard key={rec.actor} rec={rec} avgConfidence={avgConfidence} />
+          <DepartmentCard key={rec.id} rec={rec} avgConfidence={avgConfidence} />
         ))}
       </div>
 

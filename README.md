@@ -58,6 +58,8 @@ Orqestra is an AI-powered platform where specialized agents — Sales, Finance, 
 
 **Core pipeline:** Customer Request → Memory Retrieval → Independent Assessment (5 agents in parallel) → Challenge Round → Consensus Scoring → Adjudication (Ops Manager) → Approval Pending → Human Decision
 
+**Deliberation quality metrics:** 168 automated tests, structured monitoring with request-level metrics, DB health checks, and duration tracking built in.
+
 ---
 
 ## Quick Start
@@ -92,9 +94,11 @@ cd backend
 python -m venv venv && source venv/bin/activate
 pip install -e .
 
-# Ensure PostgreSQL and Redis are running, then:
+# Ensure PostgreSQL (port 5432 or match DATABASE_URL) and Redis are running, then:
 uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 ```
+
+> The docker-compose exposes PostgreSQL on port **5433** to avoid conflicts. For local dev, set `DATABASE_URL=postgresql+asyncpg://postgres:postgres@localhost:5433/orqestra` or use a local PostgreSQL on the default port 5432.
 
 **Frontend:**
 ```bash
@@ -111,8 +115,10 @@ npm run dev
 | `DASHSCOPE_API_KEY` | Yes | — | Alibaba Cloud Qwen API key (get from [DashScope Console](https://dashscope.console.aliyun.com/)) |
 | `QWEN_MODEL_OPERATIONAL` | No | `qwen3.7-plus` | Model for operational agents |
 | `QWEN_MODEL_EXECUTIVE` | No | `qwen-max` | Model for the Operations Manager agent |
+| `CORS_ORIGINS` | No | — | Comma-separated additional CORS origins for production |
+| `FRONTEND_PUBLIC_URL` | No | `http://localhost:8000` | Public backend URL sent to browser (Docker build arg) |
 
-> **Note:** Without `DASHSCOPE_API_KEY`, agent deliberation falls back gracefully with structured errors. The benchmark module runs entirely on business tool simulations and does not require an API key.
+> **Note:** Without `DASHSCOPE_API_KEY`, agent deliberation returns structured errors. The benchmark module runs entirely on business tool simulations and does not require an API key.
 
 ---
 
@@ -154,24 +160,27 @@ Step through the deliberation process with animated playback. Watch each agent's
 ### Real-Time Updates
 Server-Sent Events (SSE) push live updates from the backend to the frontend as deliberation progresses.
 
+### Monitoring & Observability
+A lightweight in-process metrics collector tracks request counts, error rates, status code distributions, and average response duration. Exposed via `GET /metrics`. The `GET /health` endpoint verifies database connectivity. All access logs include `duration_ms` for endpoint-level performance monitoring.
+
 ---
 
 ## API Routes
 
 ### Cases
-| Method | Route | Description |
-|---|---|---|
-| GET | `/cases` | List all cases |
-| GET | `/cases/{id}` | Case detail with events and directives |
-| POST | `/cases` | Create a new case |
-| POST | `/cases/{id}/run` | Run deliberation pipeline |
-| POST | `/cases/{id}/approve` | Approve the decision |
-| POST | `/cases/{id}/reject` | Reject with feedback |
-| POST | `/cases/{id}/modify` | Inject a strategic directive |
-| GET | `/cases/{id}/replay` | Replay data for a case |
-| GET | `/cases/{id}/brief` | Decision brief summary |
+| Method | Route | Query Params | Description |
+|---|---|---|---|
+| GET | `/cases` | `search`, `status`, `workflow_type`, `limit`, `offset` | List / search / filter cases |
+| GET | `/cases/{id}` | — | Case detail with events and directives |
+| POST | `/cases` | — | Create a new case |
+| POST | `/cases/{id}/run` | — | Run deliberation pipeline |
+| POST | `/cases/{id}/approve` | — | Approve the decision |
+| POST | `/cases/{id}/reject` | — | Reject with feedback |
+| POST | `/cases/{id}/modify` | — | Inject a strategic directive |
+| GET | `/cases/{id}/replay` | — | Replay data for a case |
+| GET | `/cases/{id}/brief` | — | Decision brief summary |
 
-### Demo, Benchmark, Dashboard, Events
+### Demo, Benchmark, Dashboard, Events, Monitoring
 | Method | Route | Description |
 |---|---|---|
 | GET | `/demo/cases` | List demo scenarios |
@@ -180,7 +189,8 @@ Server-Sent Events (SSE) push live updates from the backend to the frontend as d
 | POST | `/benchmark/{id}/run` | Run benchmark comparison |
 | GET | `/dashboard/metrics` | Aggregate KPIs |
 | GET | `/events/stream` | SSE live event stream |
-| GET | `/health` | Health check |
+| GET | `/health` | Health check (includes DB connectivity) |
+| GET | `/metrics` | In-memory request/error metrics |
 
 ---
 
@@ -198,7 +208,7 @@ Server-Sent Events (SSE) push live updates from the backend to the frontend as d
 | ORM | SQLAlchemy 2.0 (async) |
 | Migrations | Alembic |
 | Containerization | Docker, Docker Compose |
-| Testing | pytest, pytest-asyncio |
+| Testing | pytest, pytest-asyncio (168 tests) |
 
 ---
 

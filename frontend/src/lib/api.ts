@@ -30,6 +30,9 @@ async function fetchJSON<T>(
     if (err instanceof DOMException && err.name === "AbortError") {
       throw new Error(`Request timed out after ${timeout / 1000}s`);
     }
+    if (err instanceof TypeError && err.message === "Failed to fetch") {
+      throw new Error(`Network error — is the backend running at ${API_BASE}?`);
+    }
     throw err;
   } finally {
     clearTimeout(timer);
@@ -57,7 +60,7 @@ export const api = {
       fetchJSON<{ workflows: import("./types").WorkflowSummary[] }>("/cases/workflows"),
   },
   cases: {
-    list: () => fetchJSON<import("./types").Case[]>("/cases"),
+    list: (query?: string) => fetchJSON<import("./types").Case[]>(`/cases${query ? `?${query}` : ""}`),
     get: (id: string) => fetchJSON<import("./types").CaseDetail>(`/cases/${id}`),
     create: (data: { customer_id: string; request_text: string; workflow_type?: string }) =>
       fetchJSON<import("./types").Case>("/cases", {

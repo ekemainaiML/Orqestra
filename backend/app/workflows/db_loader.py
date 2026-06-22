@@ -42,21 +42,21 @@ async def load_workflow_config(session: AsyncSession, wt: str) -> WorkflowConfig
 
 
 async def list_all_configs(session: AsyncSession) -> list[dict]:
-    configs: list[dict] = []
+    configs: dict[str, dict] = {}
 
     for wt in list_filesystem_types():
         from app.workflows.loader import load_workflow_config as load_file_config
         cfg = load_file_config(wt)
-        configs.append({**cfg.model_dump_flat(), "is_builtin": True})
+        configs[cfg.id] = {**cfg.model_dump_flat(), "is_builtin": True}
 
     result = await session.execute(select(WorkflowConfigModel))
     for row in result.scalars():
         try:
             data = yaml.safe_load(row.yaml_content)
             cfg = WorkflowConfig(**data)
-            configs.append({**cfg.model_dump_flat(), "is_builtin": False})
+            configs[cfg.id] = {**cfg.model_dump_flat(), "is_builtin": False}
         except Exception:
-            configs.append({
+            configs[row.id] = {
                 "id": row.id,
                 "name": row.name,
                 "is_builtin": False,
@@ -65,9 +65,9 @@ async def list_all_configs(session: AsyncSession) -> list[dict]:
                 "consensus_threshold": 0.0,
                 "policies": [],
                 "required_role": "",
-            })
+            }
 
-    return configs
+    return list(configs.values())
 
 
 async def save_workflow_config(

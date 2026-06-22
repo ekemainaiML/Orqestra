@@ -17,6 +17,45 @@ class TestListCases:
         assert len(data) >= 1
         assert data[0]["request_text"] == seed_case.request_text
 
+    async def test_search_filters_by_text(self, client: AsyncClient, seed_customers, seed_case):
+        resp = await client.get(f"/cases?search={seed_case.request_text[:10]}")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert all(seed_case.request_text[:10].lower() in c["request_text"].lower() for c in data)
+
+    async def test_search_no_match_returns_empty(self, client: AsyncClient):
+        resp = await client.get("/cases?search=zzzzzznonexistent99999")
+        assert resp.status_code == 200
+        assert resp.json() == []
+
+    async def test_filter_by_status(self, client: AsyncClient, seed_customers, seed_case):
+        resp = await client.get("/cases?status=created")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert all(c["status"] == "created" for c in data)
+
+    async def test_filter_by_status_no_match(self, client: AsyncClient):
+        resp = await client.get("/cases?status=escalated")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert isinstance(data, list)
+
+    async def test_filter_by_workflow_type(self, client: AsyncClient, seed_customers, seed_case):
+        resp = await client.get(f"/cases?workflow_type={seed_case.workflow_type}")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert all(c["workflow_type"] == seed_case.workflow_type for c in data)
+
+    async def test_limit_and_offset(self, client: AsyncClient, seed_customers, seed_case):
+        resp = await client.get("/cases?limit=1&offset=0")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert len(data) <= 1
+
+    async def test_combined_filters(self, client: AsyncClient, seed_customers, seed_case):
+        resp = await client.get(f"/cases?search={seed_case.request_text[:5]}&status=created&workflow_type={seed_case.workflow_type}")
+        assert resp.status_code == 200
+
 
 class TestCreateCase:
 

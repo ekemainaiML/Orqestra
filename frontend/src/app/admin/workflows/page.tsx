@@ -151,7 +151,7 @@ export default function WorkflowsPage() {
             const isExpanded = expanded === wf.id;
             const hardCount = wf.policies.filter((p) => p.hard_constraint).length;
             return (
-              <div key={wf.id} className="card p-0 overflow-hidden">
+              <div key={`${wf.id}-${wf.is_builtin}`} className="card p-0 overflow-hidden">
                 <div
                   onClick={() => toggleExpand(wf.id)}
                   className="w-full flex items-center gap-3 px-4 py-3.5 text-left hover:bg-surface-4/30 transition-colors cursor-pointer"

@@ -14,6 +14,7 @@ from app.middleware.error_handler import ErrorHandlerMiddleware
 from app.models import Base, UserModel, WorkflowConfigModel
 from app.services.database import get_async_session, get_engine
 from app.services.logging import RequestLoggingMiddleware, setup_logging
+from app.services.metrics import metrics
 from app.services.settings import settings
 
 WORKFLOWS_DIR = os.path.join(os.path.dirname(__file__), "workflows")
@@ -89,13 +90,16 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="Orqestra", version="0.1.0", lifespan=lifespan)
 
+_cors_origins = [
+    "http://localhost:3000",
+    "https://localhost:3000",
+    "http://127.0.0.1:3000",
+]
+if settings.cors_origins:
+    _cors_origins.extend([o.strip() for o in settings.cors_origins.split(",") if o.strip()])
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000",
-        "https://localhost:3000",
-        "http://127.0.0.1:3000",
-    ],
+    allow_origins=_cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -115,4 +119,21 @@ app.include_router(dashboard.router)
 
 @app.get("/health")
 async def health():
-    return {"status": "ok", "service": "orqestra", "environment": settings.environment}
+    db_ok = False
+    try:
+        async with get_engine().connect() as conn:
+            await conn.execute(sa.text("SELECT 1"))
+            db_ok = True
+    except Exception:
+        pass
+    return {
+        "status": "ok" if db_ok else "degraded",
+        "service": "orqestra",
+        "environment": settings.environment,
+        "database": "connected" if db_ok else "unreachable",
+    }
+
+
+@app.get("/metrics")
+async def get_metrics():
+    return metrics.snapshot()

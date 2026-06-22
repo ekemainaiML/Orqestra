@@ -15,6 +15,7 @@ class Settings(BaseSettings):
     auth_username: str = "admin"
     auth_password: str = "orqestra"
     jwt_secret: str = "orqestra-dev-secret-change-in-production"
+    cors_origins: str = ""
 
     @property
     def debug(self) -> bool:
