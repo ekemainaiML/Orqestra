@@ -6,7 +6,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.memory import Memory
 
 
-async def get_memories_by_entity(entity_id: str, domain: str | None = None, session: AsyncSession | None = None) -> list[dict[str, Any]]:
+async def get_memories_by_entity(
+    entity_id: str, domain: str | None = None,
+    session: AsyncSession | None = None,
+) -> list[dict[str, Any]]:
     async def _do(s: AsyncSession) -> list[dict[str, Any]]:
         stmt = select(Memory).where(Memory.entity_id == entity_id)
         if domain:
@@ -23,7 +26,10 @@ async def get_memories_by_entity(entity_id: str, domain: str | None = None, sess
         return await _do(s)
 
 
-async def get_memories_by_department(department: str, limit: int = 10, session: AsyncSession | None = None) -> list[dict[str, Any]]:
+async def get_memories_by_department(
+    department: str, limit: int = 10,
+    session: AsyncSession | None = None,
+) -> list[dict[str, Any]]:
     async def _do(s: AsyncSession) -> list[dict[str, Any]]:
         stmt = (
             select(Memory)
@@ -66,7 +72,11 @@ async def get_organizational_memories(limit: int = 10, session: AsyncSession | N
         return await _do(s)
 
 
-async def search_memories(query: str, memory_type: str | None = None, limit: int = 10, session: AsyncSession | None = None) -> list[dict[str, Any]]:
+async def search_memories(
+    query: str, memory_type: str | None = None,
+    limit: int = 10,
+    session: AsyncSession | None = None,
+) -> list[dict[str, Any]]:
     async def _do(s: AsyncSession) -> list[dict[str, Any]]:
         stmt = select(Memory)
         if memory_type:

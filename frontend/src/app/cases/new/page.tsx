@@ -24,7 +24,6 @@ export default function NewCasePage() {
   const router = useRouter();
 
   useEffect(() => {
-    setLoadingWorkflows(true);
     api.workflows.list().then((r) => {
       setWorkflows(r.workflows);
       if (r.workflows.length > 0) setWorkflowType(r.workflows[0].id);

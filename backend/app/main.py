@@ -9,7 +9,8 @@ from sqlalchemy import select
 
 from app.api import admin, benchmark, cases, dashboard, demo, events
 from app.auth.middleware import AuthMiddleware
-from app.auth.router import _hash_password, router as auth_router
+from app.auth.router import _hash_password
+from app.auth.router import router as auth_router
 from app.middleware.error_handler import ErrorHandlerMiddleware
 from app.models import Base, UserModel, WorkflowConfigModel
 from app.services.database import get_async_session, get_engine

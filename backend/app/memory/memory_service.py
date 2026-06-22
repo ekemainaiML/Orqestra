@@ -51,7 +51,10 @@ class MemoryService:
                 memories.extend(supplier)
         return memories[:15]
 
-    async def evaluate_and_store(self, event: dict[str, Any], session: AsyncSession | None = None) -> dict[str, Any] | None:
+    async def evaluate_and_store(
+        self, event: dict[str, Any],
+        session: AsyncSession | None = None,
+    ) -> dict[str, Any] | None:
         importance = calculate_importance(event)
         if not should_promote(event):
             return None

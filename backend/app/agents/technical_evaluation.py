@@ -20,7 +20,10 @@ class TechnicalEvaluationAgent(BaseAgent):
 
     async def assess(self, context: AgentContext) -> AgentRecommendation:
         prompt = self._build_user_prompt(context)
-        prompt += "\n\nFocus on: technical proposal quality, specification compliance, delivery capability, technical risk assessment."
+        prompt += (
+            "\n\nFocus on: technical proposal quality, specification compliance,"
+            " delivery capability, technical risk assessment."
+        )
         raw = await qwen.assess_with_tools(
             system_prompt=self._build_system_prompt(),
             user_prompt=prompt,

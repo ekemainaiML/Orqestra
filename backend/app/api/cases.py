@@ -236,7 +236,11 @@ async def _run_deliberation(case_id: str, session: AsyncSession) -> dict[str, An
             session=session,
         )
         for rec in assessment["recommendations"]:
-            await publish_event(case_id, "recommendation_submitted", rec.get("agent_id", "unknown"), rec, session=session)
+            await publish_event(
+                case_id, "recommendation_submitted",
+                rec.get("agent_id", "unknown"), rec,
+                session=session,
+            )
 
         challenge_result = await process_challenges(assessment["recommendations"], workflow_agent_ids)
         for ch in challenge_result["challenges"]:
@@ -270,7 +274,11 @@ async def _run_deliberation(case_id: str, session: AsyncSession) -> dict[str, An
         await session.commit()
         return {"status": "escalated", "case_id": case_id, "decision": decision_result}
 
-    await publish_event(case_id, "decision_generated", executive_agent.role, decision_result["decision"], session=session)
+    await publish_event(
+        case_id, "decision_generated",
+        executive_agent.role, decision_result["decision"],
+        session=session,
+    )
 
     sm = DeliberationStateMachine(case.status)
     sm.transition("approval_pending")

@@ -21,7 +21,10 @@ class ProcurementDirectorAgent(BaseAgent):
 
     async def assess(self, context: AgentContext) -> AgentRecommendation:
         prompt = self._build_user_prompt(context)
-        prompt += "\n\nFocus on: cross-department synthesis, conflict adjudication, regulatory compliance, final recommendation."
+        prompt += (
+            "\n\nFocus on: cross-department synthesis, conflict adjudication,"
+            " regulatory compliance, final recommendation."
+        )
         raw = await qwen.assess_with_tools(
             system_prompt=self._build_system_prompt(),
             user_prompt=prompt,

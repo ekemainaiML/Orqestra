@@ -1,7 +1,7 @@
 import asyncio
 from typing import Any
 
-from app.agents.base import AgentContext, AgentRecommendation, MODEL_TIERS
+from app.agents.base import AgentContext, AgentRecommendation
 from app.memory.memory_service import MemoryService
 from app.workflows.loader import get_operational_workflow_agents
 from app.workflows.schema import WorkflowConfig

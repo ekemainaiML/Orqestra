@@ -7,7 +7,10 @@ QWEN_TOOL_DEFINITIONS: dict[str, dict[str, Any]] = {
         "type": "function",
         "function": {
             "name": "calculate_price",
-            "description": "Calculate unit price, subtotal, margin and applicable discounts based on quantity and client type",
+            "description": (
+                "Calculate unit price, subtotal, margin and"
+                " applicable discounts based on quantity and client type"
+            ),
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -71,7 +74,11 @@ QWEN_TOOL_DEFINITIONS: dict[str, dict[str, Any]] = {
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "region": {"type": "string", "description": "Filter by region (e.g. Asia, Africa)", "default": None},
+                    "region": {
+                        "type": "string",
+                        "description": "Filter by region (e.g. Asia, Africa)",
+                        "default": None,
+                    },
                     "min_reliability": {
                         "type": "number",
                         "description": "Minimum reliability score (0.0 to 1.0)",
@@ -109,11 +116,18 @@ QWEN_TOOL_DEFINITIONS: dict[str, dict[str, Any]] = {
                 "properties": {
                     "policy_id": {
                         "type": "string",
-                        "description": "Policy identifier (e.g. minimum_margin, new_client_deposit, government_payment_terms, preferred_supplier, customs_buffer)",
+                        "description": (
+                            "Policy identifier (e.g. minimum_margin,"
+                            " new_client_deposit, government_payment_terms,"
+                            " preferred_supplier, customs_buffer)"
+                        ),
                     },
                     "context": {
                         "type": "object",
-                        "description": "Business context to evaluate against (e.g. {\"margin_pct\": 18.5, \"is_new_client\": false})",
+                        "description": (
+                            'Business context to evaluate against'
+                            ' (e.g. {"margin_pct": 18.5, "is_new_client": false})'
+                        ),
                     },
                 },
                 "required": ["policy_id", "context"],

@@ -27,7 +27,10 @@ class MetricsCollector:
             "total_requests": self.request_count,
             "total_errors": self.error_count,
             "requests_per_second": round(self.request_count / uptime_s, 2) if uptime_s > 0 else 0.0,
-            "average_duration_ms": round(self.total_duration_ms / self.request_count, 1) if self.request_count > 0 else 0.0,
+            "average_duration_ms": (
+                round(self.total_duration_ms / self.request_count, 1)
+                if self.request_count > 0 else 0.0
+            ),
             "status_counts": dict(self.status_counts),
             "error_types": dict(self.error_types),
         }

@@ -17,7 +17,7 @@ import { MetricCard } from "@/components/MetricCard";
 import { StatusBadge } from "@/components/StatusBadge";
 import { useEffect, useState, useCallback } from "react";
 import { api } from "@/lib/api";
-import type { Case, WorkflowSummary } from "@/lib/types";
+import type { Case } from "@/lib/types";
 
 const STATUS_OPTIONS = ["", "created", "independent_assessment", "adjudication", "approval_pending", "completed", "escalated"] as const;
 

@@ -30,7 +30,10 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
             _record_metrics(response.status_code, duration_ms)
         except Exception:
             duration_ms = (time.monotonic() - start) * 1000
-            logger.exception("request_id=%s method=%s path=%s duration_ms=%.0f", request_id, request.method, request.url.path, duration_ms)
+            logger.exception(
+                "request_id=%s method=%s path=%s duration_ms=%.0f",
+                request_id, request.method, request.url.path, duration_ms,
+            )
             _record_metrics(500, duration_ms, error_type="unhandled")
             raise
 

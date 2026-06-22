@@ -22,7 +22,6 @@ export function DirectivePanel({ caseId, iteration }: { caseId: string; iteratio
   const [deleting, setDeleting] = useState<string | null>(null);
 
   const load = useCallback(async () => {
-    setLoading(true);
     try {
       const list = await api.cases.directives.list(caseId);
       setDirectives(list);
@@ -34,6 +33,7 @@ export function DirectivePanel({ caseId, iteration }: { caseId: string; iteratio
   }, [caseId]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     load();
   }, [load, iteration]);
 

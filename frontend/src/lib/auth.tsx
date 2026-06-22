@@ -35,11 +35,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const stored = localStorage.getItem(TOKEN_KEY);
     const user = localStorage.getItem(USER_KEY);
+    /* eslint-disable react-hooks/set-state-in-effect */
     if (stored && user) {
       setToken(stored);
       setUsername(user);
     }
     setReady(true);
+    /* eslint-enable react-hooks/set-state-in-effect */
   }, []);
 
   useEffect(() => {

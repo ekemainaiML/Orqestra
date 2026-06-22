@@ -3,7 +3,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { api } from "@/lib/api";
 import { useCaseEvents } from "@/hooks/useCaseEvents";
-import type { CaseDetail, DeliberationResult, WorkflowEvent, WorkflowSummary } from "@/lib/types";
+import type { CaseDetail, DeliberationResult, WorkflowEvent } from "@/lib/types";
 import { StatusBadge } from "@/components/StatusBadge";
 import { WorkflowGraph } from "@/components/WorkflowGraph";
 import { DecisionBoard } from "@/components/DecisionBoard";

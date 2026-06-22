@@ -21,8 +21,10 @@ export function ThemeToggle() {
   const [theme, setThemeState] = useState<"light" | "dark">("dark");
 
   useEffect(() => {
+    /* eslint-disable react-hooks/set-state-in-effect */
     setMounted(true);
     setThemeState(getTheme());
+    /* eslint-enable react-hooks/set-state-in-effect */
   }, []);
 
   useEffect(() => {

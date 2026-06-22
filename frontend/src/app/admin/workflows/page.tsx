@@ -5,12 +5,10 @@ import {
   Loader2,
   FileText,
   Trash2,
-  CheckCircle2,
   XCircle,
   AlertTriangle,
   ChevronDown,
   ChevronRight,
-  ExternalLink,
   ShieldCheck,
   Download,
   Upload,
@@ -37,7 +35,6 @@ export default function WorkflowsPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const fetchWorkflows = useCallback(async () => {
-    setLoading(true);
     setError("");
     try {
       const res = await api.admin.list();
@@ -50,6 +47,7 @@ export default function WorkflowsPage() {
   }, []);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchWorkflows();
   }, [fetchWorkflows]);
 

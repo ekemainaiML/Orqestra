@@ -20,7 +20,10 @@ class ProcurementReviewAgent(BaseAgent):
 
     async def assess(self, context: AgentContext) -> AgentRecommendation:
         prompt = self._build_user_prompt(context)
-        prompt += "\n\nFocus on: vendor suitability, tender compliance, procurement history, vendor selection recommendation."
+        prompt += (
+            "\n\nFocus on: vendor suitability, tender compliance,"
+            " procurement history, vendor selection recommendation."
+        )
         raw = await qwen.assess_with_tools(
             system_prompt=self._build_system_prompt(),
             user_prompt=prompt,

@@ -156,9 +156,11 @@ async def list_workflows(session: AsyncSession = Depends(get_session)):
 
 @router.get("/workflows/{workflow_id}/export")
 async def export_workflow(workflow_id: str, session: AsyncSession = Depends(get_session)):
-    from app.workflows.db_loader import _is_builtin_type, _strip_builtin_prefix
-    from app.workflows.loader import WORKFLOWS_DIR, load_workflow_config as load_file_config
     import os
+
+    from app.workflows.db_loader import _is_builtin_type, _strip_builtin_prefix
+    from app.workflows.loader import WORKFLOWS_DIR
+    from app.workflows.loader import load_workflow_config as load_file_config
 
     if _is_builtin_type(workflow_id):
         raw = _strip_builtin_prefix(workflow_id)
@@ -167,8 +169,9 @@ async def export_workflow(workflow_id: str, session: AsyncSession = Depends(get_
         with open(yaml_path) as f:
             content = f.read()
     else:
-        from app.models.workflow_config import WorkflowConfigModel
         from sqlalchemy import select
+
+        from app.models.workflow_config import WorkflowConfigModel
         result = await session.execute(
             select(WorkflowConfigModel).where(WorkflowConfigModel.id == workflow_id)
         )

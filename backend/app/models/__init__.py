@@ -8,4 +8,7 @@ from app.models.workflow_config import WorkflowConfigModel
 from app.models.workflow_event import WorkflowEvent
 from app.services.database import Base
 
-__all__ = ["Base", "Case", "Customer", "UserModel", "WorkflowEvent", "Memory", "BenchmarkRun", "Directive", "WorkflowConfigModel"]
+__all__ = [
+    "Base", "Case", "Customer", "UserModel", "WorkflowEvent",
+    "Memory", "BenchmarkRun", "Directive", "WorkflowConfigModel",
+]
