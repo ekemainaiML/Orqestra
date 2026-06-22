@@ -1,5 +1,6 @@
 from app.agents.base import BaseAgent
 from app.agents.compliance import ComplianceAgent
+from app.agents.customer_success import CustomerSuccessAgent
 from app.agents.finance import FinanceAgent
 from app.agents.inventory import InventoryAgent
 from app.agents.legal import LegalAgent
@@ -22,6 +23,7 @@ _registry: dict[str, type[BaseAgent]] = {
     "technical_evaluation": TechnicalEvaluationAgent,
     "compliance": ComplianceAgent,
     "legal": LegalAgent,
+    "customer_success": CustomerSuccessAgent,
     "procurement_director": ProcurementDirectorAgent,
 }
 

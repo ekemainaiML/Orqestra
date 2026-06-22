@@ -13,6 +13,7 @@
 - Production-ready frontend Dockerfile with `NEXT_PUBLIC_API_URL` build arg
 - `CORS_ORIGINS` env var for flexible CORS configuration
 - `python-multipart` dependency for admin file upload support
+- **New domain: Customer Onboarding** — `CustomerSuccessAgent`, `onboarding_service` tool (KYC, credit check, document verification), `customer_onboarding.yaml` workflow with 5 departments (Customer Success, Sales, Finance, Compliance, Ops Manager)
 
 ### Fixed
 - Frontend SSE timeout: `RUN_TIMEOUT_MS` increased from 120s → 300s

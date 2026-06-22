@@ -1,6 +1,6 @@
 from typing import Any
 
-from app.business_tools import inventory_service, policy_engine, pricing_engine, supplier_db
+from app.business_tools import inventory_service, onboarding_service, policy_engine, pricing_engine, supplier_db
 
 QWEN_TOOL_DEFINITIONS: dict[str, dict[str, Any]] = {
     "calculate_price": {
@@ -142,6 +142,57 @@ QWEN_TOOL_DEFINITIONS: dict[str, dict[str, Any]] = {
             "parameters": {"type": "object", "properties": {}, "required": []},
         },
     },
+    "check_kyc": {
+        "type": "function",
+        "function": {
+            "name": "check_kyc",
+            "description": "Check KYC status and customer segment information",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "customer_id": {
+                        "type": "string",
+                        "description": "Customer UUID",
+                    },
+                },
+                "required": ["customer_id"],
+            },
+        },
+    },
+    "check_credit": {
+        "type": "function",
+        "function": {
+            "name": "check_credit",
+            "description": "Check customer credit score and determine if deposit is required",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "customer_id": {
+                        "type": "string",
+                        "description": "Customer UUID",
+                    },
+                },
+                "required": ["customer_id"],
+            },
+        },
+    },
+    "verify_documents": {
+        "type": "function",
+        "function": {
+            "name": "verify_documents",
+            "description": "Verify customer documentation completeness for onboarding",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "customer_id": {
+                        "type": "string",
+                        "description": "Customer UUID",
+                    },
+                },
+                "required": ["customer_id"],
+            },
+        },
+    },
 }
 
 TOOL_EXECUTOR: dict[str, Any] = {
@@ -153,6 +204,9 @@ TOOL_EXECUTOR: dict[str, Any] = {
     "get_supplier": supplier_db.get_supplier,
     "check_policy": policy_engine.check_policy,
     "get_all_policies": policy_engine.get_all_policies,
+    "check_kyc": onboarding_service.check_kyc,
+    "check_credit": onboarding_service.check_credit,
+    "verify_documents": onboarding_service.verify_documents,
 }
 
 
@@ -167,6 +221,7 @@ def get_tool_names_for_agent(agent_tools: list[str]) -> list[str]:
         "supplier_db": ["find_suppliers", "get_supplier"],
         "policy_engine": ["check_policy", "get_all_policies"],
         "customer_db": [],
+        "onboarding_service": ["check_kyc", "check_credit", "verify_documents"],
     }
     names = []
     for t in agent_tools:

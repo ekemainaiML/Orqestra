@@ -1,0 +1,112 @@
+id: customer_onboarding
+name: Customer Onboarding
+description: "Multi-department review of new customer onboarding — KYC, credit, documentation, compliance, and readiness assessment."
+
+departments:
+  - id: customer_success
+    role: Customer Success
+    model_tier: operational
+    objectives:
+      - Assess customer readiness for onboarding
+      - Verify documentation and KYC completeness
+      - Identify training and support requirements
+      - Recommend onboarding timeline and plan
+    policies:
+      - All customers must complete KYC before onboarding
+      - New customers require onboarding within 14 business days
+      - Enterprise customers get dedicated success manager
+    tools:
+      - onboarding_service
+
+  - id: sales
+    role: Sales
+    model_tier: operational
+    objectives:
+      - Verify quote-to-onboarding handoff completeness
+      - Confirm customer requirements match contract terms
+      - Identify upselling or cross-selling opportunities
+      - Assess customer relationship history
+    policies:
+      - Onboarding must reflect signed contract terms
+      - Change orders require separate approval
+      - Enterprise customers qualify for priority onboarding
+    tools:
+      - pricing_engine
+      - customer_db
+
+  - id: finance
+    role: Finance
+    model_tier: operational
+    objectives:
+      - Verify payment setup and billing configuration
+      - Assess credit risk and deposit requirements
+      - Confirm pricing and margin alignment
+      - Recommend payment terms and structure
+    policies:
+      - Minimum 15% gross margin on all orders
+      - New clients with credit score < 75 require 50% deposit
+      - Government clients receive net-60 payment terms
+    tools:
+      - pricing_engine
+      - policy_engine
+
+  - id: compliance
+    role: Compliance
+    model_tier: operational
+    objectives:
+      - Complete KYC and AML verification
+      - Validate regulatory and statutory compliance
+      - Verify certifications, licenses, and registrations
+      - Flag compliance risks and required remediation
+    policies:
+      - All customers must pass KYC before onboarding activation
+      - Sanctioned entities or individuals are automatically rejected
+      - Compliance clearance must be >= 0.90 for approval
+    tools:
+      - policy_engine
+
+  - id: operations_manager
+    role: Operations Manager
+    model_tier: executive
+    objectives:
+      - Synthesize all department assessments into onboarding decision
+      - Adjudicate conflicts between readiness and compliance findings
+      - Ensure all policies and regulatory requirements are met
+      - Make final onboarding recommendation with clear rationale
+    policies:
+      - Consider all department inputs before deciding
+      - Explain why alternative approaches were rejected
+      - Flag unresolved concerns for human operator
+      - Maintain organizational confidence above 65%
+    tools:
+      - policy_engine
+
+decision_dimensions:
+  - customer_readiness
+  - financial_viability
+  - compliance_clearance
+  - operational_capacity
+  - risk_assessment
+
+governance:
+  challenge_round: true
+  consensus_threshold: 0.75
+  deadlock_resolution: escalate
+
+policies:
+  - id: kyc_clearance
+    rule: kyc_status == verified
+    hard_constraint: true
+  - id: credit_threshold
+    rule: credit_score >= 70 for standard onboarding
+    hard_constraint: false
+  - id: document_completeness
+    rule: all required documents must be submitted before activation
+    hard_constraint: true
+  - id: deposit_requirement
+    rule: clients with credit_score < 75 require 50% deposit
+    hard_constraint: false
+
+approval:
+  required_role: operations_manager
+  auto_approve_confidence: 0.95
