@@ -16,6 +16,7 @@ dependencies = [
     "httpx>=0.28.0",
     "fastapi-sse-events>=0.2.0,<0.3",
     "python-dotenv>=1.0.0",
+    "python-multipart>=0.0.18",
 ]
 
 [project.optional-dependencies]
