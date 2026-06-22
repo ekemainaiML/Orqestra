@@ -3,7 +3,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { api } from "@/lib/api";
-import type { BenchmarkResult } from "@/lib/types";
+import type { BenchmarkResult, WorkflowSummary } from "@/lib/types";
 import {
   ArrowLeft,
   BarChart3,
