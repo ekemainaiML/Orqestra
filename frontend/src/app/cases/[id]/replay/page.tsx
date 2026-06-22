@@ -3,7 +3,7 @@ import { useEffect, useState, useCallback } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { api } from "@/lib/api";
-import type { CaseDetail } from "@/lib/types";
+import type { CaseDetail, WorkflowSummary } from "@/lib/types";
 import { StatusBadge } from "@/components/StatusBadge";
 import {
   ArrowLeft,
@@ -59,11 +59,22 @@ export default function ReplayPage() {
   const params = useParams();
   const caseId = params.id as string;
   const [caseData, setCaseData] = useState<CaseDetail | null>(null);
+  const [workflowName, setWorkflowName] = useState("");
+  const [departments, setDepartments] = useState<Array<{ id: string; role: string }>>([]);
   const [currentStep, setCurrentStep] = useState(0);
   const [playing, setPlaying] = useState(false);
 
   useEffect(() => {
-    api.cases.get(caseId).then(setCaseData);
+    api.cases.get(caseId).then((c) => {
+      setCaseData(c);
+      api.workflows.list().then((r) => {
+        const wf = r.workflows.find((w) => w.id === c.workflow_type);
+        if (wf) {
+          setWorkflowName(wf.name);
+          setDepartments(wf.departments);
+        }
+      }).catch(() => {});
+    });
   }, [caseId]);
 
   useEffect(() => {
@@ -120,9 +131,32 @@ export default function ReplayPage() {
               &nbsp;&middot;&nbsp;Step-by-step playback of the deliberation
             </p>
           </div>
-          <StatusBadge status={caseData.status} />
+          <div className="flex items-center gap-3">
+            <StatusBadge status={caseData.status} />
+            {workflowName && (
+              <span className="text-xs text-text-muted">{workflowName}</span>
+            )}
+          </div>
         </div>
       </div>
+
+      {departments.length > 0 && (
+        <div className="card">
+          <h3 className="text-xs font-semibold text-text-muted uppercase tracking-wider mb-3">
+            Departments
+          </h3>
+          <div className="flex flex-wrap gap-2">
+            {departments.map((d, i) => (
+              <span
+                key={d.id}
+                className="text-xs px-2 py-1 rounded-md bg-surface-4 text-text-secondary"
+              >
+                {i + 1}. {d.role}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="card">
         <div className="flex items-center justify-between mb-6">

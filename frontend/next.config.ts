@@ -1,9 +1,4 @@
 const nextConfig = {
-  turbo: {
-    resolveAlias: {
-      "@/*": "./src/*",
-    },
-  },
   async rewrites() {
     return [
       {

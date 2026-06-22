@@ -1,11 +1,10 @@
 from app.agents.base import AgentContext, AgentRecommendation, BaseAgent
 from app.services.qwen_client import qwen
-from app.services.settings import settings
 
 
 class InventoryAgent(BaseAgent):
     role = "Inventory"
-    model = settings.qwen_model_operational
+    model_tier = "operational"
     objectives = [
         "Check stock availability against order requirements",
         "Assess stock vs. manufacture vs. procure balance",
@@ -20,10 +19,11 @@ class InventoryAgent(BaseAgent):
     async def assess(self, context: AgentContext) -> AgentRecommendation:
         prompt = self._build_user_prompt(context)
         prompt += "\n\nFocus on: stock availability, quantity feasibility, stock vs. procurement recommendation."
-        raw = await qwen.assess(
+        raw = await qwen.assess_with_tools(
             system_prompt=self._build_system_prompt(),
             user_prompt=prompt,
+            tools=self.get_qwen_tools(),
             response_model=AgentRecommendation,
-            model=self.model,
+            model=self.get_model(context),
         )
         return AgentRecommendation.model_validate(raw)

@@ -1,11 +1,10 @@
 from app.agents.base import AgentContext, AgentRecommendation, BaseAgent
 from app.services.qwen_client import qwen
-from app.services.settings import settings
 
 
 class OperationsManagerAgent(BaseAgent):
     role = "Operations Manager"
-    model = settings.qwen_model_executive
+    model_tier = "executive"
     objectives = [
         "Synthesize all department recommendations into a coherent strategy",
         "Adjudicate conflicts between departments",
@@ -28,10 +27,11 @@ class OperationsManagerAgent(BaseAgent):
             "\nYou must: select the best recommendation, explain your reasoning,"
             "\nlist rejected alternatives with reasons, and flag any unresolved risks."
         )
-        raw = await qwen.assess(
+        raw = await qwen.assess_with_tools(
             system_prompt=self._build_system_prompt(),
             user_prompt=prompt,
+            tools=self.get_qwen_tools(),
             response_model=AgentRecommendation,
-            model=self.model,
+            model=self.get_model(context),
         )
         return AgentRecommendation.model_validate(raw)

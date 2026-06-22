@@ -10,7 +10,7 @@ STATES: list[str] = [
 TERMINAL_STATES: set[str] = {"completed", "closed", "escalated", "closed_without_resolution", "rejected", "failed"}
 
 TRANSITIONS: dict[str, list[str]] = {
-    "created": ["memory_retrieval", "failed"],
+    "created": ["memory_retrieval", "constraint_modified", "failed"],
     "memory_retrieval": ["independent_assessment", "clarification_required", "failed"],
     "independent_assessment": ["challenge_round", "failed"],
     "challenge_round": ["consensus_scoring", "failed"],

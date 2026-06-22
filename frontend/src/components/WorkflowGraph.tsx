@@ -1,4 +1,4 @@
-import { CheckCircle2, Circle, Loader2 } from "lucide-react";
+import { CheckCircle2, Circle, Loader2, Users } from "lucide-react";
 
 const WORKFLOW_STATES = [
   { key: "created", label: "Created" },
@@ -11,8 +11,19 @@ const WORKFLOW_STATES = [
   { key: "completed", label: "Completed" },
 ];
 
-export function WorkflowGraph({ status }: { status: string }) {
+export function WorkflowGraph({
+  status,
+  departments,
+}: {
+  status: string;
+  departments?: Array<{ id: string; role: string }>;
+}) {
   const currentIdx = WORKFLOW_STATES.findIndex((s) => s.key === status);
+  const indeIdx = WORKFLOW_STATES.findIndex((s) => s.key === "independent_assessment");
+  const adjIdx = WORKFLOW_STATES.findIndex((s) => s.key === "adjudication");
+  const isInDepartmentsPhase = currentIdx >= indeIdx && currentIdx < adjIdx;
+  const inDept =
+    isInDepartmentsPhase ? currentIdx - indeIdx : -1;
 
   return (
     <div>
@@ -69,6 +80,46 @@ export function WorkflowGraph({ status }: { status: string }) {
           );
         })}
       </div>
+
+      {departments && departments.length > 0 && (
+        <div className="mt-4 pt-4 border-t border-border">
+          <h3 className="text-xs font-semibold text-text-muted uppercase tracking-wider mb-3 flex items-center gap-1.5">
+            <Users size={12} />
+            Departments
+          </h3>
+          <div className="space-y-1.5">
+            {departments.map((d, i) => {
+              const isDone = i < inDept;
+              const isActive = i === inDept;
+              return (
+                <div key={d.id} className="flex items-center gap-2 px-1">
+                  <div
+                    className={`w-1.5 h-1.5 rounded-full shrink-0 ${
+                      isDone
+                        ? "bg-brand-500"
+                        : isActive
+                          ? "bg-brand-400 animate-pulse"
+                          : "bg-border"
+                    }`}
+                  />
+                  <span
+                    className={`text-xs ${
+                      isDone || isActive
+                        ? "text-text-primary font-medium"
+                        : "text-text-muted"
+                    }`}
+                  >
+                    {d.role}
+                  </span>
+                  {isActive && (
+                    <Loader2 size={10} className="animate-spin text-brand-400 shrink-0" />
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

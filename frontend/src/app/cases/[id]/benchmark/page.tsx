@@ -3,7 +3,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { api } from "@/lib/api";
-import type { BenchmarkResult } from "@/lib/types";
+import type { BenchmarkResult, CaseDetail, WorkflowSummary } from "@/lib/types";
 import {
   ArrowLeft,
   BarChart3,
@@ -15,6 +15,8 @@ import {
   Database,
   Zap,
   Loader2,
+  ChevronDown,
+  ChevronRight,
 } from "lucide-react";
 
 const METRICS = [
@@ -65,6 +67,21 @@ export default function BenchmarkPage() {
   const caseId = params.id as string;
   const [benchmark, setBenchmark] = useState<BenchmarkResult | null>(null);
   const [running, setRunning] = useState(false);
+  const [workflowName, setWorkflowName] = useState("");
+  const [allWorkflows, setAllWorkflows] = useState<WorkflowSummary[]>([]);
+  const [currentWf, setCurrentWf] = useState<string>("");
+  const [wfCompareOpen, setWfCompareOpen] = useState(false);
+
+  useEffect(() => {
+    api.cases.get(caseId).then((c) => {
+      setCurrentWf(c.workflow_type);
+      api.workflows.list().then((r) => {
+        const wf = r.workflows.find((w) => w.id === c.workflow_type);
+        if (wf) setWorkflowName(wf.name);
+        setAllWorkflows(r.workflows);
+      }).catch(() => {});
+    });
+  }, [caseId]);
 
   const load = useCallback(
     () => api.benchmark.get(caseId).then(setBenchmark),
@@ -101,7 +118,8 @@ export default function BenchmarkPage() {
               Benchmark Comparison
             </h1>
             <p className="text-sm text-text-muted mt-1">
-              Side-by-side: single-agent baseline vs Orqestra organization
+              {workflowName && <>{workflowName} &middot; </>}
+              Single-agent baseline vs Orqestra organization
             </p>
           </div>
           <button
@@ -186,6 +204,85 @@ export default function BenchmarkPage() {
               </div>
             );
           })}
+        </div>
+      )}
+
+      {allWorkflows.length > 1 && (
+        <div className="card">
+          <button
+            type="button"
+            onClick={() => setWfCompareOpen(!wfCompareOpen)}
+            className="w-full flex items-center gap-2 text-left"
+          >
+            {wfCompareOpen ? <ChevronDown size={16} className="text-text-muted" /> : <ChevronRight size={16} className="text-text-muted" />}
+            <h3 className="text-sm font-semibold text-text-primary">
+              Workflow Comparison
+            </h3>
+            <span className="text-xs text-text-muted">
+              {allWorkflows.length} types available
+            </span>
+          </button>
+
+          {wfCompareOpen && (
+            <div className="mt-4 overflow-x-auto">
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="border-b border-border">
+                    <th className="text-left font-medium text-text-muted uppercase tracking-wider py-2 pr-4">Metric</th>
+                    {allWorkflows.map((wf) => (
+                      <th
+                        key={wf.id}
+                        className={`text-left font-medium py-2 px-3 ${
+                          wf.id === currentWf ? "text-brand-400" : "text-text-muted"
+                        } uppercase tracking-wider`}
+                      >
+                        <div className="flex items-center gap-1.5">
+                          {wf.id === currentWf && <Zap size={10} />}
+                          {wf.name}
+                        </div>
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {[
+                    { label: "Departments", value: (wf: WorkflowSummary) => wf.departments.length.toString() },
+                    { label: "Executive Role", value: (wf: WorkflowSummary) => {
+                        const exec = wf.departments.find(d => d.model_tier === "executive");
+                        return exec?.role ?? "—";
+                      }
+                    },
+                    { label: "Operational Agents", value: (wf: WorkflowSummary) => {
+                        return wf.departments.filter(d => d.model_tier !== "executive").length.toString();
+                      }
+                    },
+                    { label: "Model Tiers", value: (wf: WorkflowSummary) => {
+                        const tiers = [...new Set(wf.departments.map(d => d.model_tier))];
+                        return tiers.join(", ");
+                      }
+                    },
+                  ].map((row) => (
+                    <tr key={row.label} className="hover:bg-surface-4/30">
+                      <td className="py-2 pr-4 text-text-secondary font-medium">{row.label}</td>
+                      {allWorkflows.map((wf) => (
+                        <td
+                          key={wf.id}
+                          className={`py-2 px-3 ${
+                            wf.id === currentWf ? "text-text-primary" : "text-text-muted"
+                          }`}
+                        >
+                          {row.value(wf)}
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              <p className="text-[10px] text-text-muted mt-3">
+                <Zap size={10} className="inline" /> Current case workflow
+              </p>
+            </div>
+          )}
         </div>
       )}
 

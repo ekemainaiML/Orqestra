@@ -1,11 +1,10 @@
-import asyncio
 import uuid
-from typing import AsyncGenerator, Generator
+from typing import AsyncGenerator
 
 import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 
 from app.main import app
 from app.models import Base
@@ -15,7 +14,6 @@ from app.models.customer import Customer
 from app.models.directive import Directive
 from app.models.memory import Memory
 from app.models.workflow_event import WorkflowEvent
-from app.services.database import async_session, get_session
 from app.services.settings import settings
 
 import os as _os
@@ -30,39 +28,27 @@ if not TEST_DB_URL:
     _base = _base.replace("/orqestra", "/orqestra_test")
     TEST_DB_URL = _base
 
-test_engine = create_async_engine(TEST_DB_URL, echo=False)
-test_async_session = async_sessionmaker(test_engine, class_=AsyncSession, expire_on_commit=False)
-
-
-@pytest.fixture(scope="session")
-def event_loop():
-    loop = asyncio.new_event_loop()
-    yield loop
-    loop.close()
-
-
-@pytest_asyncio.fixture(scope="session")
+@pytest_asyncio.fixture
 async def setup_database():
-    async with test_engine.begin() as conn:
+    engine = create_async_engine(TEST_DB_URL, echo=False)
+    async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.drop_all)
         await conn.run_sync(Base.metadata.create_all)
     yield
-    async with test_engine.begin() as conn:
+    async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.drop_all)
-    await test_engine.dispose()
+    await engine.dispose()
 
 
 @pytest_asyncio.fixture
 async def db_session(setup_database) -> AsyncGenerator[AsyncSession, None]:
-    connection = await test_engine.connect()
-    transaction = await connection.begin()
-    session = AsyncSession(bind=connection, expire_on_commit=False)
+    engine = create_async_engine(TEST_DB_URL, echo=False)
+    session = AsyncSession(engine, expire_on_commit=False)
     try:
         yield session
     finally:
         await session.close()
-        await transaction.rollback()
-        await connection.close()
+        await engine.dispose()
 
 
 @pytest_asyncio.fixture
@@ -102,24 +88,46 @@ async def seed_case(db_session: AsyncSession, seed_customers: list[Customer]) ->
     return case
 
 
+def _make_test_app():
+    from fastapi import FastAPI
+
+    test_app = FastAPI(title="Orqestra Test", version="0.1.0")
+    from app.api import admin, benchmark, cases, dashboard, demo, events
+    from app.auth.router import router as auth_router
+    test_app.include_router(auth_router)
+    test_app.include_router(admin.router)
+    test_app.include_router(cases.router)
+    test_app.include_router(demo.router)
+    test_app.include_router(events.router)
+    test_app.include_router(benchmark.router)
+    test_app.include_router(dashboard.router)
+
+    @test_app.get("/health")
+    async def health():
+        return {"status": "ok"}
+
+    return test_app
+
+
 @pytest_asyncio.fixture
 async def client(setup_database) -> AsyncGenerator[AsyncClient, None]:
+    from app.services.database import get_session
+
+    engine = create_async_engine(TEST_DB_URL, echo=False)
+
     async def override_get_session():
-        connection = await test_engine.connect()
-        transaction = await connection.begin()
-        session = AsyncSession(bind=connection, expire_on_commit=False)
+        session = AsyncSession(engine, expire_on_commit=False)
         try:
             yield session
         finally:
             await session.close()
-            await transaction.rollback()
-            await connection.close()
 
-    app.dependency_overrides[get_session] = override_get_session
-    transport = ASGITransport(app=app)
+    test_app = _make_test_app()
+    test_app.dependency_overrides[get_session] = override_get_session
+    transport = ASGITransport(app=test_app)
     async with AsyncClient(transport=transport, base_url="http://test") as ac:
         yield ac
-    app.dependency_overrides.clear()
+    await engine.dispose()
 
 
 @pytest.fixture

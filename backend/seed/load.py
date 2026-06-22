@@ -6,7 +6,7 @@ from pathlib import Path
 from sqlalchemy import select
 
 from app.models import Customer, Memory
-from app.services.database import async_session
+from app.services.database import get_async_session
 
 
 def load_json(name: str) -> list[dict]:
@@ -15,7 +15,7 @@ def load_json(name: str) -> list[dict]:
 
 
 async def seed():
-    async with async_session() as session:
+    async with get_async_session()() as session:
         existing = await session.execute(select(Customer).limit(1))
         if existing.scalar_one_or_none():
             print("Database already seeded. Skipping.")

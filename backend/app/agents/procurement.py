@@ -1,11 +1,10 @@
 from app.agents.base import AgentContext, AgentRecommendation, BaseAgent
 from app.services.qwen_client import qwen
-from app.services.settings import settings
 
 
 class ProcurementAgent(BaseAgent):
     role = "Procurement"
-    model = settings.qwen_model_operational
+    model_tier = "operational"
     objectives = [
         "Identify optimal supplier based on cost, reliability, and lead time",
         "Evaluate sourcing options (local vs international)",
@@ -22,10 +21,11 @@ class ProcurementAgent(BaseAgent):
     async def assess(self, context: AgentContext) -> AgentRecommendation:
         prompt = self._build_user_prompt(context)
         prompt += "\n\nFocus on: supplier selection, sourcing strategy, cost analysis, lead time assessment."
-        raw = await qwen.assess(
+        raw = await qwen.assess_with_tools(
             system_prompt=self._build_system_prompt(),
             user_prompt=prompt,
+            tools=self.get_qwen_tools(),
             response_model=AgentRecommendation,
-            model=self.model,
+            model=self.get_model(context),
         )
         return AgentRecommendation.model_validate(raw)

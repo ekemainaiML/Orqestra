@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { api } from "@/lib/api";
-import type { CaseDetail, WorkflowEvent } from "@/lib/types";
+import type { CaseDetail, WorkflowEvent, WorkflowSummary } from "@/lib/types";
 import { StatusBadge } from "@/components/StatusBadge";
 import {
   ArrowLeft,
@@ -33,11 +33,18 @@ export default function AuditPage() {
   const params = useParams();
   const caseId = params.id as string;
   const [caseData, setCaseData] = useState<CaseDetail | null>(null);
+  const [workflowName, setWorkflowName] = useState("");
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [searchQuery, setSearchQuery] = useState("");
 
   useEffect(() => {
-    api.cases.get(caseId).then(setCaseData);
+    api.cases.get(caseId).then((c) => {
+      setCaseData(c);
+      api.workflows.list().then((r) => {
+        const wf = r.workflows.find((w) => w.id === c.workflow_type);
+        if (wf) setWorkflowName(wf.name);
+      }).catch(() => {});
+    });
   }, [caseId]);
 
   if (!caseData) {
@@ -96,7 +103,9 @@ export default function AuditPage() {
             </h1>
             <p className="text-sm text-text-muted mt-1">
               Case <span className="font-mono">{caseId.slice(0, 8)}</span>
+              &nbsp;&middot;&nbsp;{workflowName || caseData.workflow_type}
               &nbsp;&middot;&nbsp;{caseData.events.length} events
+              &nbsp;&middot;&nbsp;Iteration {caseData.iteration}
               &nbsp;&middot;&nbsp;
               <StatusBadge status={caseData.status} />
             </p>

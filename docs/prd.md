@@ -28,7 +28,8 @@ Business operations teams managing complex multi-department workflows — order 
 ### Epic: Organizational Deliberation
 
 - As a business operator, I want each department to independently analyze a request before seeing other agents' recommendations, so that I get diverse perspectives from specialized agents.
-  - [ ] Each agent performs analysis using its own Qwen API call
+  - [ ] Each agent performs analysis using its own Qwen API call with native function calling
+  - [ ] Agents call business tools directly via Qwen's `tools` parameter — tools are discovered and invoked dynamically, not described in plain text
   - [ ] Each agent receives: case context, department objectives, relevant memory, tool outputs, organizational policies
   - [ ] Each agent produces: recommendation, confidence score, supporting evidence, risks identified, alternative options
   - [ ] The deliberation timeline streams results in real-time
@@ -44,6 +45,13 @@ Business operations teams managing complex multi-department workflows — order 
   - [ ] Each agent contributes scores within its area of expertise
   - [ ] The Operations Manager generates a decision rationale citing evidence from all departments
   - [ ] The rationale explains not only what was chosen but why other options were rejected
+
+- As a business operator, I want the organization to automatically escalate to a more capable reasoning model when agents deadlock or confidence is low, so that complex cases get the reasoning depth they need without requiring manual model selection.
+  - [ ] Agents use a model tier appropriate to the situation: Flash (fast/cheap) for routine cases, Plus for standard deliberation, Max for deadlocked cases, Max-Preview for maximum reasoning depth
+  - [ ] When adjudication hits an impasse, the organization automatically retries with the next tier
+  - [ ] Each escalation emits a `TIER_ESCALATION` event visible in the audit trail
+  - [ ] Escalation chain: Flash → Operational → Executive → Max-Preview
+  - [ ] After exhausting all tiers, the case is escalated to human operator
 
 ### Epic: Executive Governance
 
@@ -142,7 +150,7 @@ All stories and acceptance criteria listed above. The MVP delivers:
 5. **No-code agent builder** — Agent roles, tools, and policies are code-defined for the MVP.
 6. **Self-hosted LLM** — All reasoning runs on Qwen Cloud APIs. No local model inference.
 
-## Open Questions
-- What is the exact Qwen model selection per agent tier? (Operational agents vs Operations Manager — to be resolved during /spec)
-- What is the confidence threshold for Organizational Completeness Score? (Suggested: 80% for auto-proceed — to be finalized during /spec)
-- How are the simulated business services (inventory, pricing engine, supplier DB) implemented? Mock data or lightweight microservices? (Deferred to /spec)
+## Resolved Design Decisions
+- **Qwen model tier selection:** Four tiers deployed — `qwen3.6-flash` (flash), `qwen3.7-plus` (operational), `qwen-max` (executive), `qwen3.6-max-preview` (max_preview). Operational agents default to `operational` tier, Operations Manager defaults to `executive`. Automatic escalation on impasse.
+- **Tool implementation pattern:** Native Qwen function calling via `tools` parameter (OpenAI-compatible SDK). Business tools defined as typed JSON function definitions with a `TOOL_EXECUTOR` registry. Agents invoke tools dynamically through Qwen's `tool_calls` response rather than through prompt-injected descriptions.
+- **Model tier settings:** Configured via env vars in `settings.py` with DashScope OpenAI-compatible base URL.

@@ -8,7 +8,7 @@
 | Database | PostgreSQL | ACID guarantees, JSONB for flexible payloads, pgvector for future embeddings, strong reporting |
 | Cache / message bus | Redis | Workflow state, Pub/Sub event bus, SSE backplane, job queues |
 | Frontend | Next.js 14+ (App Router) + React + TypeScript | Dashboard-centric demo, SSR optional, excellent ecosystem |
-| AI reasoning | Qwen Cloud APIs (OpenAI-compatible SDK) | Hackathon requirement; `qwen3.7-plus` for operational agents, `qwen-max` for Operations Manager |
+| AI reasoning | Qwen Cloud APIs (OpenAI-compatible SDK) | Hackathon requirement; four tiers — `qwen3.6-flash`, `qwen3.7-plus`, `qwen-max`, `qwen3.6-max-preview` — selected per agent via `model_tier` config, with automatic escalation on deadlock |
 | Deployment | Alibaba Cloud (ECS + RDS + Redis) | Hackathon requirement |
 | ORM | SQLAlchemy 2.0 (async) | Mature async support, Alembic migrations |
 | Real-time | Server-Sent Events (SSE) via Redis Pub/Sub | One-way streaming sufficient for timeline updates; simpler than WebSockets |
@@ -69,10 +69,13 @@
 │  └────────────────────┴───────────────────────────┘   │
 │                       │                                │
 │              ┌────────┴────────┐                       │
-│              │   Qwen Cloud    │                       │
-│              │  • qwen3.7-plus │   6 per-case calls    │
-│              │  • qwen-max     │   1 per-case call     │
-│              └─────────────────┘                       │
+│              │   Qwen Cloud        │                       │
+│              │  • qwen3.6-flash    │   tier: flash         │
+│              │  • qwen3.7-plus     │   tier: operational   │
+│              │  • qwen-max         │   tier: executive     │
+│              │  • qwen3.6-max-     │   tier: max_preview   │
+│              │    preview          │   auto-escalation     │
+│              └─────────────────────┘                       │
 └────────────────────────────────────────────────────────┘
 ```
 
@@ -206,25 +209,31 @@ Implements: `prd.md > Organizational Deliberation`
 ```python
 class BaseAgent(ABC):
     role: str
-    model: str  # qwen3.7-plus default, qwen-max for Ops Manager
+    model_tier: str  # "flash" | "operational" | "executive" | "max_preview"
     objectives: list[str]
     policies: list[str]
-    tools: list[str]
+    tools: list[str]  # references business tool names (e.g. "pricing_engine")
+
+    def get_qwen_tools(self) -> list[dict]:  # resolves tools → Qwen function definitions
+    def get_model(self, context=None) -> str:  # resolves model_tier → concrete model name
+    def get_escalated_model(self) -> str:  # bumps one tier up
 
     @abstractmethod
-    async def assess(case_context, memory, tool_outputs) -> AgentRecommendation: ...
+    async def assess(case_context, memory) -> AgentRecommendation: ...
 ```
+
+Agents use `qwen.assess_with_tools()` which passes the `tools` parameter to Qwen's OpenAI-compatible API. When Qwen returns `tool_calls`, the `QwenClient` executes the function via `TOOL_EXECUTOR` registry and feeds results back as `tool` role messages. The loop continues until Qwen returns a final JSON recommendation (max 10 tool rounds).
 
 #### Registered Agents
 
-| Agent | Model | Core Objective |
-|---|---|---|
-| Sales | qwen3.7-plus | Interpret customer intent, generate quotation |
-| Inventory | qwen3.7-plus | Check stock availability |
-| Procurement | qwen3.7-plus | Identify suppliers, sourcing options |
-| Finance | qwen3.7-plus | Evaluate risk, profitability, margin |
-| Logistics | qwen3.7-plus | Validate delivery feasibility |
-| Operations Manager | qwen-max | Synthesize, adjudicate, decide |
+| Agent | Model Tier | Tools Available | Core Objective |
+|---|---|---|---|
+| Sales | operational | calculate_price, get_exchange_rate | Interpret customer intent, generate quotation |
+| Inventory | operational | check_availability, get_product_specs | Check stock availability |
+| Procurement | operational | find_suppliers, get_supplier | Identify suppliers, sourcing options |
+| Finance | operational | calculate_price, get_exchange_rate, check_policy, get_all_policies | Evaluate risk, profitability, margin |
+| Logistics | operational | find_suppliers, get_supplier | Validate delivery feasibility |
+| Operations Manager | executive | check_policy, get_all_policies | Synthesize, adjudicate, decide |
 
 ### Workflows (`app/workflows/`)
 
@@ -258,8 +267,13 @@ Implements: `prd.md > Failure Recovery & Resilience`
 
 Implements: `prd.md > Organizational Deliberation` (tool invocation)
 
-- Simulated services for the demo: `InventoryService`, `PricingEngine`, `SupplierDB`, `PolicyEngine`
-- Each returns structured JSON that agents use as evidence
+- Simulated services for the demo: `inventory_service`, `pricing_engine`, `supplier_db`, `policy_engine`
+- Each async function returns structured JSON that agents use as evidence
+- Tools are invoked via **native Qwen function calling** — they're registered in `business_tools/definitions.py` as:
+  1. **Qwen `function` definitions** (`QWEN_TOOL_DEFINITIONS`): typed JSON schemas describing parameters and return values
+  2. **Executor registry** (`TOOL_EXECUTOR`): maps function names to async Python callables
+- Agent `tools` class vars (e.g. `["pricing_engine", "customer_db"]`) are resolved to concrete Qwen tool definitions via `get_tool_names_for_agent()` → `get_tool_definitions()`
+- Eight functions defined: `calculate_price`, `get_exchange_rate`, `check_availability`, `get_product_specs`, `find_suppliers`, `get_supplier`, `check_policy`, `get_all_policies`
 - Tools have controlled failure modes for resilience testing
 
 ## Data Model
@@ -409,6 +423,7 @@ orqestra/
 │   │   │
 │   │   ├── business_tools/        # Simulated business services
 │   │   │   ├── __init__.py
+│   │   │   ├── definitions.py     # Qwen tool definitions + executor registry
 │   │   │   ├── inventory_service.py
 │   │   │   ├── pricing_engine.py
 │   │   │   ├── supplier_db.py
@@ -434,9 +449,15 @@ orqestra/
 │   │       └── qwen_client.py     # Qwen Cloud API wrapper (OpenAI SDK)
 │   │
 │   ├── tests/
-│   │   ├── test_deliberation.py
-│   │   ├── test_governance.py
-│   │   └── test_memory.py
+│   │   ├── test_api_cases.py
+│   │   ├── test_api_dashboard.py
+│   │   ├── test_api_demo.py
+│   │   ├── test_benchmark.py
+│   │   ├── test_event_store.py
+│   │   ├── test_memory_service.py
+│   │   ├── test_scoring_engine.py
+│   │   ├── test_state_machine.py
+│   │   └── test_tool_definitions.py  # Tool definitions, executors, model tiers
 │   │
 │   └── .env.example
 │
@@ -498,6 +519,40 @@ orqestra/
 4. **Scoring Engine is deterministic.** Qwen provides assessments; the Scoring Engine performs mathematics. Consensus scores are reproducible and explainable without calling a model.
 5. **Deliberation Engine is the core product, not the agents.** The orchestration, governance, and decision-making protocol is the innovation. Agents, dashboard, and Qwen are supporting components.
 6. **Single database (PostgreSQL) for MVP.** No vector DB, no analytics DB, no document store. PostgreSQL handles operational data, events, memories, and aggregates. pgvector deferred.
+7. **Native Qwen function calling, not prompt-injected tool descriptions.** Business tools are defined as typed Qwen `function` definitions and registered in a `TOOL_EXECUTOR` map. Agents invoke tools dynamically via Qwen's `tool_calls` response — the model decides which tools to call and with what arguments, eliminating the need for agent-side tool parsing logic.
+8. **Tiered model selection with automatic escalation.** Four model tiers (Flash, Operational, Executive, Max-Preview) enable cost-aware reasoning. Operational agents default to `qwen3.7-plus`, the Ops Manager to `qwen-max`. When adjudication deadlocks, the deliberation auto-retries with the next tier — only human escalation occurs after all tiers exhausted.
+
+### Qwen Client (`app/services/qwen_client.py`)
+
+Three call patterns:
+- **`assess()`** — Legacy text-in/text-out. Injects JSON schema into system prompt, sets `response_format={"type": "json_object"}`. Used for backward compatibility.
+- **`assess_with_tools()`** — Native function calling. Sends `tools` parameter with Qwen function definitions. If response includes `tool_calls`, executes via `TOOL_EXECUTOR` and loops results back as `tool` role messages. Returns final JSON after tool execution completes. Max 10 tool rounds.
+- **`assess_raw()`** — Plain text response, no JSON constraint, no tools. Used for free-form generation.
+
+Tool discovery: Each agent's `tools` class var (e.g. `["pricing_engine", "customer_db"]`) is resolved to concrete Qwen function definitions via `get_tool_names_for_agent()` → `get_tool_definitions()` in `business_tools/definitions.py`. Eight functions defined: `calculate_price`, `get_exchange_rate`, `check_availability`, `get_product_specs`, `find_suppliers`, `get_supplier`, `check_policy`, `get_all_policies`.
+
+### Model Tier Resolution
+
+```python
+MODEL_TIERS = {
+    "flash":        "qwen3.6-flash",
+    "operational":  "qwen3.7-plus",
+    "executive":    "qwen-max",
+    "max_preview":  "qwen3.6-max-preview",
+}
+```
+
+Each agent declares `model_tier` (default `"operational"`). `get_model()` resolves it to a concrete model name. `get_escalated_model()` bumps one tier up. Escalation chain: `flash → operational → executive → max_preview`.
+
+### Automatic Tier Escalation
+
+In `api/cases.py:run_deliberation()`, when the Adjudicator returns `is_impasse=True`, the system automatically:
+1. Escalates the model tier via `escalate_tier()`
+2. Re-runs the full deliberation loop (re-assessment, re-challenge, re-scoring, re-adjudication)
+3. Emits a `TIER_ESCALATION` event at each escalation step
+4. Only falls through to `ESCALATED` state if `max_preview` tier also fails
+
+This ensures complex or deadlocked cases automatically get increased reasoning depth without manual operator intervention.
 
 ## Dependencies & External Services
 
@@ -513,9 +568,14 @@ orqestra/
 | Tailwind CSS | Styling | [tailwindcss.com](https://tailwindcss.com/docs) | |
 | Alibaba Cloud | Hosting | [aliyun.com](https://www.aliyun.com/) | ECS, RDS, Redis |
 
+## Resolved Design Decisions
+
+- **Qwen model tier selection:** Resolved — four tiers deployed (`flash`/`operational`/`executive`/`max_preview`). Mapped to `qwen3.6-flash`, `qwen3.7-plus`, `qwen-max`, `qwen3.6-max-preview`. Automatic escalation on impasse.
+- **Tool invocation pattern:** Resolved — Native Qwen function calling via `tools` parameter. Business tools defined as typed JSON function definitions in `business_tools/definitions.py`.
+- **Qwen API base:** Resolved — DashScope OpenAI-compatible endpoint (`https://dashscope-intl.aliyuncs.com/compatible-mode/v1`) confirmed working with AsyncOpenAI SDK.
+
 ## Open Issues
 
-- **Qwen model selection for tiered agents:** `qwen3.7-plus` proposed for operational agents, `qwen-max` for Ops Manager. Confirm model availability and pricing on the learner's Qwen Cloud plan before build.
 - **Confidence threshold for Organizational Completeness Score:** 75% proposed for auto-proceed. May need tuning after initial testing.
 - **Replay mode implementation:** Is replay a static JSON playback or does the State Machine re-execute from stored events? Currently designed as event replay from `workflow_events` table — confirm this approach during build.
 - **Frontend SSE reconnection strategy:** Auto-reconnect with exponential backoff. Confirm approach during build.

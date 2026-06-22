@@ -3,6 +3,9 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
+from app.business_tools.definitions import get_tool_definitions, get_tool_names_for_agent
+from app.services.settings import settings
+
 
 class AgentRecommendation(BaseModel):
     agent_id: str
@@ -35,25 +38,68 @@ class AgentContext(BaseModel):
     directives: list[dict[str, Any]] = []
 
 
+MODEL_TIERS: dict[str, str] = {
+    "flash": settings.qwen_model_flash,
+    "operational": settings.qwen_model_operational,
+    "executive": settings.qwen_model_executive,
+    "max_preview": settings.qwen_model_max_preview,
+}
+
+
+def resolve_model(model_or_tier: str) -> str:
+    return MODEL_TIERS.get(model_or_tier, model_or_tier)
+
+
 class BaseAgent(ABC):
     role: str
-    model: str
+    model: str = ""
+    model_tier: str = "operational"
     objectives: list[str] = []
     policies: list[str] = []
     tools: list[str] = []
+
+    def get_model(self, context: AgentContext | None = None) -> str:
+        if self.model:
+            return self.model
+        return resolve_model(self.model_tier)
+
+    def get_escalated_model(self) -> str:
+        escalation_chain = ["flash", "operational", "executive", "max_preview"]
+        try:
+            idx = escalation_chain.index(self.model_tier)
+            if idx < len(escalation_chain) - 1:
+                return resolve_model(escalation_chain[idx + 1])
+        except ValueError:
+            pass
+        return resolve_model("max_preview")
+
+    def get_qwen_tools(self) -> list[dict[str, Any]]:
+        tool_names = get_tool_names_for_agent(self.tools)
+        return get_tool_definitions(tool_names)
 
     @abstractmethod
     async def assess(self, context: AgentContext) -> AgentRecommendation:
         ...
 
     def _build_system_prompt(self) -> str:
-        return (
+        prompt = (
             f"You are the {self.role} department in an AI organization called Orqestra.\n"
             f"Your objectives: {', '.join(self.objectives)}\n"
             f"Policies you must follow: {', '.join(self.policies)}\n"
-            f"Tools available: {', '.join(self.tools)}\n"
-            "You communicate in structured JSON. Think in natural language, respond in contracts."
         )
+        qwen_tools = self.get_qwen_tools()
+        if qwen_tools:
+            tool_names = [t["function"]["name"] for t in qwen_tools]
+            prompt += f"Tools available: {', '.join(tool_names)}\n"
+        else:
+            prompt += f"Tools available: {', '.join(self.tools)}\n"
+        prompt += "You communicate in structured JSON. Think in natural language, respond in contracts.\n"
+        prompt += (
+            "You have access to function calls. When you need information, "
+            "call the appropriate function instead of guessing. "
+            "After gathering all necessary data, produce your final recommendation."
+        )
+        return prompt
 
     def _build_user_prompt(self, context: AgentContext) -> str:
         memory_section = ""
@@ -66,7 +112,7 @@ class BaseAgent(ABC):
 
         tools_section = ""
         if context.tool_outputs:
-            tools_section = f"\nTool results:\n{context.tool_outputs}\n"
+            tools_section = f"\nPre-computed tool results:\n{context.tool_outputs}\n"
 
         directives_section = ""
         if context.directives:

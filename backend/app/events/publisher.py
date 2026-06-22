@@ -2,6 +2,7 @@ import json
 from typing import Any
 
 import redis.asyncio as redis
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.events.event_store import append_event
 from app.services.settings import settings
@@ -23,8 +24,9 @@ async def publish_event(
     actor: str,
     payload: dict[str, Any] | None = None,
     iteration: int = 0,
+    session: AsyncSession | None = None,
 ) -> dict[str, Any]:
-    event = await append_event(case_id, event_type, actor, payload, iteration)
+    event = await append_event(case_id, event_type, actor, payload, iteration, session=session)
     try:
         r = await get_redis()
         await r.publish(SSE_CHANNEL, json.dumps(event))

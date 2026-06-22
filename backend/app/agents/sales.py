@@ -1,11 +1,10 @@
 from app.agents.base import AgentContext, AgentRecommendation, BaseAgent
 from app.services.qwen_client import qwen
-from app.services.settings import settings
 
 
 class SalesAgent(BaseAgent):
     role = "Sales"
-    model = settings.qwen_model_operational
+    model_tier = "operational"
     objectives = [
         "Interpret customer intent and requirements",
         "Generate accurate quotations",
@@ -25,10 +24,11 @@ class SalesAgent(BaseAgent):
             "\n\nFocus on: customer intent, quotation recommendation, "
             "upselling opportunities, relationship assessment."
         )
-        raw = await qwen.assess(
+        raw = await qwen.assess_with_tools(
             system_prompt=self._build_system_prompt(),
             user_prompt=prompt,
+            tools=self.get_qwen_tools(),
             response_model=AgentRecommendation,
-            model=self.model,
+            model=self.get_model(context),
         )
         return AgentRecommendation.model_validate(raw)

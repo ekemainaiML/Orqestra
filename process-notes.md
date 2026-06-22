@@ -54,3 +54,16 @@
 - **Added `asyncio_mode = "auto"`** to `pyproject.toml` — async tests now properly discoverable by pytest-asyncio.
 - **Isolated DB-dependent tests:** Marked all integration tests (event_store, memory queries/service) as `@pytest.mark.skip` with reason "Needs DB session injection refactor — `module` uses global async_session".
 - **Result:** 57 passed, 11 skipped across 5 test files (state_machine, scoring_engine, benchmark, memory_service, event_store).
+
+## /build — Native Qwen function calling + tiered models (Session 2026-06-20)
+
+- **`business_tools/definitions.py`** — Qwen tool definitions for all 8 business functions (calculate_price, get_exchange_rate, check_availability, get_product_specs, find_suppliers, get_supplier, check_policy, get_all_policies). Maps agent tool names (e.g. `pricing_engine`) to Qwen `function` definitions with typed JSON schemas.
+- **`services/qwen_client.py`** — Added `assess_with_tools()`. Full function calling loop: sends `tools` param → if Qwen returns `tool_calls`, executes via `TOOL_EXECUTOR` registry → feeds results back as `tool` role messages → continues until Qwen returns final JSON. Max 10 tool rounds. Falls back cleanly when `tools` is empty.
+- **`agents/base.py`** — Added `model_tier` system: `MODEL_TIERS` dict (`flash`/`operational`/`executive`/`max_preview`), `resolve_model()`, `get_model()`, `get_escalated_model()`. Agents use `model_tier` class var instead of hardcoded `model`. System prompt now lists concrete tool names from Qwen definitions.
+- **All 6 agents** — Switched from `qwen.assess()` to `qwen.assess_with_tools()`, passing `self.get_qwen_tools()`. Removed `settings.qwen_model_*` imports. Use `self.get_model(context)` for dynamic model resolution.
+- **`deliberation/agent_manager.py`** — Added `model_tier_override` param. When set, overrides all agents' tiers before assessment. `escalate_tier()` helper for `flash→operational→executive→max_preview` chain.
+- **`deliberation/adjudicator.py`** — Added `model_tier_override` param for Ops Manager tier escalation.
+- **`api/cases.py`** — Added auto-escalation loop in `run_deliberation`: if adjudication hits impasse, escalates tier and retries full deliberation (re-assessment, re-challenge, re-scoring, re-adjudication). Only falls through to `escalated` state after max_preview tier fails.
+- **`services/settings.py`** — Added `qwen_model_flash` and `qwen_model_max_preview` config vars.
+- **New tests:** `test_tool_definitions.py` — 29 tests covering tool definitions, executors, agent tool mappings, model tier resolution, tier escalation, and system prompt content.
+- **Result:** 86 passed (57 old + 29 new), 29 skipped (unchanged DB tests).

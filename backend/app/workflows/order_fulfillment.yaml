@@ -1,0 +1,125 @@
+id: order_fulfillment
+name: Order Fulfillment
+description: "Multi-department review of customer orders — stock, pricing, supplier, logistics, and finance."
+
+departments:
+  - id: sales
+    role: Sales
+    model_tier: operational
+    objectives:
+      - Interpret customer intent and requirements
+      - Generate accurate quotations
+      - Identify upselling opportunities
+      - Assess customer relationship history
+    policies:
+      - Standard pricing applies unless volume discount authorized
+      - First-time customers require full upfront payment
+      - Government clients get net-60 terms standard
+    tools:
+      - pricing_engine
+      - customer_db
+
+  - id: inventory
+    role: Inventory
+    model_tier: operational
+    objectives:
+      - Check stock availability against order requirements
+      - Assess stock vs. manufacture vs. procure balance
+      - Flag stock shortages and lead time impacts
+    policies:
+      - "Safety stock: maintain 10% buffer above confirmed orders"
+      - "Stock allocation: first-confirmed-first-served"
+    tools:
+      - inventory_service
+
+  - id: procurement
+    role: Procurement
+    model_tier: operational
+    objectives:
+      - Identify optimal supplier based on cost, reliability, and lead time
+      - Evaluate sourcing options (local vs international)
+      - Assess supplier risk and historical performance
+      - Recommend procurement strategy
+    policies:
+      - Prefer suppliers with proven reliability score > 0.85
+      - International orders require currency risk assessment
+      - Regional suppliers prioritized for urgent orders
+    tools:
+      - supplier_db
+
+  - id: finance
+    role: Finance
+    model_tier: operational
+    objectives:
+      - Evaluate deal profitability and margin
+      - Assess financial risk and payment terms
+      - Ensure policy compliance (minimum margin, payment terms)
+      - Recommend optimal pricing structure
+    policies:
+      - Minimum 15% gross margin on all orders
+      - International contracts must account for currency risk
+      - "New clients: 50% deposit required for first order"
+    tools:
+      - pricing_engine
+      - policy_engine
+
+  - id: logistics
+    role: Logistics
+    model_tier: operational
+    objectives:
+      - Validate delivery feasibility within requested timeline
+      - Assess shipping routes and costs
+      - Identify delivery risks (customs, distance, weather)
+      - Recommend optimal shipping strategy
+    policies:
+      - "Government orders: factor 3-5 days for customs clearance"
+      - International shipping requires minimum 7-day lead time
+      - Regional delivery within 3 days available for Africa-based suppliers
+    tools:
+      - supplier_db
+
+  - id: operations_manager
+    role: Operations Manager
+    model_tier: executive
+    objectives:
+      - Synthesize all department recommendations into a coherent strategy
+      - Adjudicate conflicts between departments
+      - Ensure organizational policy compliance
+      - Make final decision with clear rationale
+    policies:
+      - Consider all department inputs before deciding
+      - Explain why alternatives were rejected
+      - Flag unresolved concerns for human operator
+      - Maintain organizational confidence above 65%
+    tools:
+      - policy_engine
+
+decision_dimensions:
+  - customer_satisfaction
+  - profitability
+  - operational_risk
+  - delivery_reliability
+  - policy_compliance
+
+governance:
+  challenge_round: true
+  consensus_threshold: 0.75
+  deadlock_resolution: escalate
+
+policies:
+  - id: minimum_margin
+    rule: gross_margin >= 0.15
+    hard_constraint: true
+  - id: new_client_deposit
+    rule: new_clients require 50% deposit on first order
+    hard_constraint: true
+  - id: government_payment_terms
+    rule: government clients receive net-60 payment terms
+    hard_constraint: false
+  - id: preferred_supplier
+    rule: prefer suppliers with reliability score > 0.85
+    hard_constraint: false
+
+approval:
+  required_role: operations_manager
+  auto_approve_confidence: 0.95

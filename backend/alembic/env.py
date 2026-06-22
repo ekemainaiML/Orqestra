@@ -5,7 +5,7 @@ from alembic import context
 from sqlalchemy import pool
 from sqlalchemy.ext.asyncio import create_async_engine
 
-from app.models import Case, Customer, WorkflowEvent, Memory, BenchmarkRun, Directive  # noqa: F401
+from app.models import Case, Customer, WorkflowEvent, Memory, BenchmarkRun, Directive, WorkflowConfigModel  # noqa: F401
 from app.services.database import Base
 from app.services.settings import settings
 

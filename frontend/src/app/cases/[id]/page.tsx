@@ -3,10 +3,13 @@ import { useCallback, useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { api } from "@/lib/api";
 import { useCaseEvents } from "@/hooks/useCaseEvents";
-import type { CaseDetail, DeliberationResult, WorkflowEvent } from "@/lib/types";
+import type { CaseDetail, DeliberationResult, WorkflowEvent, WorkflowSummary } from "@/lib/types";
 import { StatusBadge } from "@/components/StatusBadge";
 import { WorkflowGraph } from "@/components/WorkflowGraph";
 import { DecisionBoard } from "@/components/DecisionBoard";
+import { DeliberationProgress } from "@/components/DeliberationProgress";
+import { DepartmentAssessments } from "@/components/DepartmentAssessments";
+import { DirectivePanel } from "@/components/DirectivePanel";
 import {
   Play,
   CheckCircle,
@@ -27,19 +30,37 @@ export default function CaseDetailPage() {
   const [running, setRunning] = useState(false);
   const [result, setResult] = useState<DeliberationResult | null>(null);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [workflowName, setWorkflowName] = useState("");
+  const [workflowDepartments, setWorkflowDepartments] = useState<Array<{ id: string; role: string }> | undefined>(undefined);
   const liveEvents = useCaseEvents(caseId);
 
   useEffect(() => {
-    api.cases.get(caseId).then(setCaseData);
+    api.cases.get(caseId).then((c) => {
+      setCaseData(c);
+      api.workflows.list().then((r) => {
+        const wf = r.workflows.find((w) => w.id === c.workflow_type);
+        if (wf) {
+          setWorkflowName(wf.name);
+          setWorkflowDepartments(wf.departments);
+        }
+      }).catch(() => {});
+    });
   }, [caseId]);
+
+  const [runError, setRunError] = useState<string | null>(null);
 
   const handleRun = useCallback(async () => {
     setRunning(true);
+    setRunError(null);
     try {
       const r = await api.cases.run(caseId);
       setResult(r);
       const updated = await api.cases.get(caseId);
       setCaseData(updated);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Unknown error";
+      setRunError(msg);
+      console.error("Deliberation run failed:", err);
     } finally {
       setRunning(false);
     }
@@ -83,6 +104,9 @@ export default function CaseDetailPage() {
               {caseId.slice(0, 8)}
             </h1>
             <StatusBadge status={caseData.status} />
+            <span className="text-xs text-text-muted">
+              {workflowName || caseData.workflow_type}
+            </span>
             <span className="text-xs text-text-muted">
               Iteration {caseData.iteration}
             </span>
@@ -167,10 +191,23 @@ export default function CaseDetailPage() {
         )}
       </div>
 
+      {runError && (
+        <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+          Deliberation failed: {runError}
+        </div>
+      )}
+
+      {running && (
+        <DeliberationProgress events={liveEvents} />
+      )}
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
         <div className="space-y-5">
           <div className="card">
-            <WorkflowGraph status={caseData.status} />
+            <WorkflowGraph status={caseData.status} departments={workflowDepartments} />
+          </div>
+          <div className="card">
+            <DirectivePanel caseId={caseId} iteration={caseData.iteration} />
           </div>
           <div className="card">
             <h3 className="text-xs font-semibold text-text-muted uppercase tracking-wider mb-4">
@@ -217,6 +254,12 @@ export default function CaseDetailPage() {
           {result && (
             <div className="card">
               <DecisionBoard result={result} />
+            </div>
+          )}
+
+          {allEvents.length > 0 && (
+            <div className="card">
+              <DepartmentAssessments events={allEvents} />
             </div>
           )}
 

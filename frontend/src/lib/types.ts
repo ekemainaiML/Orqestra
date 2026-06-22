@@ -74,6 +74,68 @@ interface Comparison {
   memory_utilization_gain: number;
 }
 
+export interface WorkflowSummary {
+  id: string;
+  name: string;
+  departments: Array<{ id: string; role: string; model_tier: string }>;
+}
+
+export interface AdminWorkflowDetail {
+  id: string;
+  name: string;
+  is_builtin: boolean;
+  yaml_content: string;
+  config: {
+    id: string;
+    name: string;
+    departments: Array<{ id: string; role: string; model_tier: string; objectives: string[]; policies: string[]; tools: string[] }>;
+    decision_dimensions: string[];
+    consensus_threshold: number;
+    policies: Array<{ id: string; rule: string; hard_constraint: boolean }>;
+    required_role: string;
+  };
+}
+
+export interface AdminWorkflowListResponse {
+  workflows: Array<{
+    id: string;
+    name: string;
+    is_builtin: boolean;
+    departments: Array<{ id: string; role: string; model_tier: string }>;
+    decision_dimensions: string[];
+    consensus_threshold: number;
+    policies: Array<{ id: string; rule: string; hard_constraint: boolean }>;
+    required_role: string;
+  }>;
+}
+
+export interface SaveWorkflowResponse {
+  id: string;
+  name: string;
+  message: string;
+}
+
+export interface ValidationResult {
+  valid: boolean;
+  workflow_id: string | null;
+  workflow_name: string | null;
+  errors: string[];
+  warnings: string[];
+  summary: {
+    workflow_id: string;
+    workflow_name: string;
+    departments: number;
+    operational_departments: number;
+    decision_dimensions: number;
+    policies: number;
+    hard_constraints: number;
+    consensus_threshold: number;
+    deadlock_resolution: string;
+    required_role: string;
+    agents_resolved: number;
+  } | null;
+}
+
 export interface DemoCase {
   id: string;
   scenario: string;

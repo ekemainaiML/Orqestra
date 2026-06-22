@@ -15,14 +15,20 @@ import { MetricCard } from "@/components/MetricCard";
 import { StatusBadge } from "@/components/StatusBadge";
 import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
-import type { Case } from "@/lib/types";
+import type { Case, WorkflowSummary } from "@/lib/types";
 
 export default function DashboardPage() {
   const { metrics, loading } = useDashboardMetrics();
   const [cases, setCases] = useState<Case[]>([]);
+  const [wfNames, setWfNames] = useState<Record<string, string>>({});
 
   useEffect(() => {
     api.cases.list().then(setCases).catch(() => {});
+    api.workflows.list().then((r) => {
+      const map: Record<string, string> = {};
+      for (const w of r.workflows) map[w.id] = w.name;
+      setWfNames(map);
+    }).catch(() => {});
   }, []);
 
   return (
@@ -106,6 +112,9 @@ export default function DashboardPage() {
                     <th className="text-left text-xs font-medium text-text-muted uppercase tracking-wider px-4 py-3 hidden md:table-cell">
                       Request
                     </th>
+                    <th className="text-left text-xs font-medium text-text-muted uppercase tracking-wider px-4 py-3 hidden lg:table-cell">
+                      Workflow
+                    </th>
                     <th className="text-left text-xs font-medium text-text-muted uppercase tracking-wider px-4 py-3">
                       Status
                     </th>
@@ -133,6 +142,11 @@ export default function DashboardPage() {
                         <p className="text-sm text-text-secondary truncate max-w-[300px]">
                           {c.request_text}
                         </p>
+                      </td>
+                      <td className="px-4 py-3 hidden lg:table-cell">
+                        <span className="text-xs text-text-muted">
+                          {wfNames[c.workflow_type] || c.workflow_type}
+                        </span>
                       </td>
                       <td className="px-4 py-3">
                         <StatusBadge status={c.status} />

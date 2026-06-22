@@ -1,7 +1,4 @@
-import pytest
 from httpx import AsyncClient
-
-pytestmark = pytest.mark.skip(reason="Needs DB session injection refactor — routes use global async_session not Depends()")
 
 
 class TestDemoCases:
@@ -17,8 +14,8 @@ class TestDemoCases:
         data = resp.json()
         for scenario in data:
             assert "id" in scenario
-            assert "name" in scenario
+            assert "scenario" in scenario
             assert "customer_id" in scenario
             assert "request_text" in scenario
-            assert "difficulty" in scenario
-            assert "agent_count" in scenario
+            assert "description" in scenario
+            assert "request_text" in scenario

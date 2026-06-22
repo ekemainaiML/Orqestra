@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime
 from typing import Any
 
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 
 
 class CaseResponse(BaseModel):
@@ -22,6 +22,13 @@ class CaseCreate(BaseModel):
     customer_id: uuid.UUID
     request_text: str
     workflow_type: str = "order_fulfillment"
+
+    @field_validator("request_text")
+    @classmethod
+    def request_text_not_empty(cls, v: str) -> str:
+        if not v.strip():
+            raise ValueError("request_text must not be empty")
+        return v
 
 
 class CaseDetail(CaseResponse):

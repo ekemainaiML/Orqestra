@@ -3,8 +3,9 @@ import time
 import uuid
 from typing import Any
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import delete, select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.business_tools.inventory_service import check_availability, get_product_specs
 from app.business_tools.policy_engine import check_policy, get_all_policies
@@ -13,7 +14,7 @@ from app.business_tools.supplier_db import find_suppliers
 from app.memory.memory_service import MemoryService
 from app.models.benchmark_run import BenchmarkRun
 from app.models.case import Case
-from app.services.database import async_session
+from app.services.database import get_session
 
 router = APIRouter(prefix="/benchmark", tags=["benchmark"])
 memory_service = MemoryService()
@@ -212,38 +213,37 @@ def _count_risks(rec: dict[str, Any]) -> int:
 
 
 @router.get("/{case_id}")
-async def get_benchmark(case_id: str):
-    async with async_session() as session:
-        case = await session.get(Case, uuid.UUID(case_id))
-        if not case:
-            raise HTTPException(status_code=404, detail="Case not found")
+async def get_benchmark(case_id: str, session: AsyncSession = Depends(get_session)):
+    case = await session.get(Case, uuid.UUID(case_id))
+    if not case:
+        raise HTTPException(status_code=404, detail="Case not found")
 
-        stmt = select(BenchmarkRun).where(BenchmarkRun.case_id == uuid.UUID(case_id))
-        result = await session.execute(stmt)
-        runs = result.scalars().all()
+    stmt = select(BenchmarkRun).where(BenchmarkRun.case_id == uuid.UUID(case_id))
+    result = await session.execute(stmt)
+    runs = result.scalars().all()
 
-        single_agent_run = next((r for r in runs if r.run_type == "single_agent"), None)
-        org_run = next((r for r in runs if r.run_type == "organization"), None)
+    single_agent_run = next((r for r in runs if r.run_type == "single_agent"), None)
+    org_run = next((r for r in runs if r.run_type == "organization"), None)
 
-        return {
-            "single_agent": {
-                "recommendation": single_agent_run.recommendation if single_agent_run else {},
-                "confidence": single_agent_run.confidence if single_agent_run else 0,
-                "risks_found": single_agent_run.risks_found if single_agent_run else 0,
-                "factors_considered": single_agent_run.factors_considered if single_agent_run else 0,
-                "reasoning_time_s": single_agent_run.reasoning_time_s if single_agent_run else 0,
-                "memory_used": single_agent_run.memory_used if single_agent_run else 0,
-            } if single_agent_run else None,
-            "organization": {
-                "recommendation": org_run.recommendation if org_run else {},
-                "confidence": org_run.confidence if org_run else 0,
-                "risks_found": org_run.risks_found if org_run else 0,
-                "factors_considered": org_run.factors_considered if org_run else 0,
-                "reasoning_time_s": org_run.reasoning_time_s if org_run else 0,
-                "memory_used": org_run.memory_used if org_run else 0,
-            } if org_run else None,
-            "comparison": _compute_comparison(single_agent_run, org_run) if single_agent_run and org_run else None,
-        }
+    return {
+        "single_agent": {
+            "recommendation": single_agent_run.recommendation if single_agent_run else {},
+            "confidence": single_agent_run.confidence if single_agent_run else 0,
+            "risks_found": single_agent_run.risks_found if single_agent_run else 0,
+            "factors_considered": single_agent_run.factors_considered if single_agent_run else 0,
+            "reasoning_time_s": single_agent_run.reasoning_time_s if single_agent_run else 0,
+            "memory_used": single_agent_run.memory_used if single_agent_run else 0,
+        } if single_agent_run else None,
+        "organization": {
+            "recommendation": org_run.recommendation if org_run else {},
+            "confidence": org_run.confidence if org_run else 0,
+            "risks_found": org_run.risks_found if org_run else 0,
+            "factors_considered": org_run.factors_considered if org_run else 0,
+            "reasoning_time_s": org_run.reasoning_time_s if org_run else 0,
+            "memory_used": org_run.memory_used if org_run else 0,
+        } if org_run else None,
+        "comparison": _compute_comparison(single_agent_run, org_run) if single_agent_run and org_run else None,
+    }
 
 
 def _compute_comparison(single: Any, org: Any) -> dict[str, Any]:
@@ -256,16 +256,15 @@ def _compute_comparison(single: Any, org: Any) -> dict[str, Any]:
 
 
 @router.post("/{case_id}/run")
-async def run_benchmark(case_id: str):
-    async with async_session() as session:
-        case = await session.get(Case, uuid.UUID(case_id))
-        if not case:
-            raise HTTPException(status_code=404, detail="Case not found")
+async def run_benchmark(case_id: str, session: AsyncSession = Depends(get_session)):
+    case = await session.get(Case, uuid.UUID(case_id))
+    if not case:
+        raise HTTPException(status_code=404, detail="Case not found")
 
-        await session.execute(
-            delete(BenchmarkRun).where(BenchmarkRun.case_id == uuid.UUID(case_id))
-        )
-        await session.commit()
+    await session.execute(
+        delete(BenchmarkRun).where(BenchmarkRun.case_id == uuid.UUID(case_id))
+    )
+    await session.commit()
 
     parsed = _parse_case_text(case.request_text)
     tools = await _run_tool_analysis(parsed)
@@ -293,29 +292,28 @@ async def run_benchmark(case_id: str):
     single_risks = _count_risks(single_rec)
     single_factors = _count_factors(single_rec)
 
-    async with async_session() as session:
-        single_run = BenchmarkRun(
-            case_id=uuid.UUID(case_id),
-            run_type="single_agent",
-            recommendation=single_rec,
-            confidence=single_confidence,
-            risks_found=single_risks,
-            factors_considered=single_factors,
-            reasoning_time_s=round(t1 - t0, 2),
-            memory_used=mem_count,
-        )
-        org_run = BenchmarkRun(
-            case_id=uuid.UUID(case_id),
-            run_type="organization",
-            recommendation=org_decision,
-            confidence=org_confidence,
-            risks_found=org_risks,
-            factors_considered=org_factors,
-            reasoning_time_s=round(t3 - t2, 2),
-            memory_used=len(org_memory),
-        )
-        session.add_all([single_run, org_run])
-        await session.commit()
+    single_run = BenchmarkRun(
+        case_id=uuid.UUID(case_id),
+        run_type="single_agent",
+        recommendation=single_rec,
+        confidence=single_confidence,
+        risks_found=single_risks,
+        factors_considered=single_factors,
+        reasoning_time_s=round(t1 - t0, 2),
+        memory_used=mem_count,
+    )
+    org_run = BenchmarkRun(
+        case_id=uuid.UUID(case_id),
+        run_type="organization",
+        recommendation=org_decision,
+        confidence=org_confidence,
+        risks_found=org_risks,
+        factors_considered=org_factors,
+        reasoning_time_s=round(t3 - t2, 2),
+        memory_used=len(org_memory),
+    )
+    session.add_all([single_run, org_run])
+    await session.commit()
 
     return {
         "message": "Benchmark run completed",

@@ -1,9 +1,11 @@
 "use client";
 import { usePathname } from "next/navigation";
-import { ChevronRight } from "lucide-react";
+import { useAuth } from "@/lib/auth";
+import { ChevronRight, LogOut } from "lucide-react";
 
 export function Header() {
   const pathname = usePathname();
+  const { username, logout } = useAuth();
   const segments = pathname.split("/").filter(Boolean);
 
   const crumbs: { label: string; href: string }[] = [];
@@ -53,6 +55,16 @@ export function Header() {
               Qwen Cloud &middot; Connected
             </span>
           </div>
+          {username && (
+            <button
+              onClick={logout}
+              className="flex items-center gap-1.5 text-xs text-text-muted hover:text-text-primary transition-colors"
+              title="Logout"
+            >
+              <span>{username}</span>
+              <LogOut size={12} />
+            </button>
+          )}
         </div>
       </div>
     </header>

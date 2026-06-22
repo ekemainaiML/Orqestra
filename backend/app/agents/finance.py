@@ -1,11 +1,10 @@
 from app.agents.base import AgentContext, AgentRecommendation, BaseAgent
 from app.services.qwen_client import qwen
-from app.services.settings import settings
 
 
 class FinanceAgent(BaseAgent):
     role = "Finance"
-    model = settings.qwen_model_operational
+    model_tier = "operational"
     objectives = [
         "Evaluate deal profitability and margin",
         "Assess financial risk and payment terms",
@@ -22,10 +21,11 @@ class FinanceAgent(BaseAgent):
     async def assess(self, context: AgentContext) -> AgentRecommendation:
         prompt = self._build_user_prompt(context)
         prompt += "\n\nFocus on: margin analysis, financial risk, policy compliance, pricing recommendation."
-        raw = await qwen.assess(
+        raw = await qwen.assess_with_tools(
             system_prompt=self._build_system_prompt(),
             user_prompt=prompt,
+            tools=self.get_qwen_tools(),
             response_model=AgentRecommendation,
-            model=self.model,
+            model=self.get_model(context),
         )
         return AgentRecommendation.model_validate(raw)

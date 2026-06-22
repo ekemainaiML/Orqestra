@@ -6,6 +6,8 @@ import {
   Library,
   Plus,
   ChefHat,
+  ShieldCheck,
+  Settings2,
 } from "lucide-react";
 import { ThemeToggle } from "@/components/ThemeToggle";
 
@@ -45,6 +47,36 @@ export function Sidebar() {
               key={href}
               href={href}
               className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${
+                isActive
+                  ? "bg-brand-500/10 text-brand-400 border border-brand-500/20"
+                  : "text-text-secondary hover:text-text-primary hover:bg-surface-3 border border-transparent"
+              }`}
+            >
+              <Icon size={18} />
+              <span>{label}</span>
+              {isActive && (
+                <div className="ml-auto w-1 h-4 rounded-full bg-brand-500" />
+              )}
+            </Link>
+          );
+        })}
+
+        <div className="pt-4 pb-1">
+          <span className="px-3 text-[10px] font-semibold text-text-muted uppercase tracking-widest">
+            Admin
+          </span>
+        </div>
+
+        {[
+          { href: "/admin/workflows", label: "Workflows", icon: Settings2 },
+          { href: "/admin/workflows/validate", label: "Validate Workflow", icon: ShieldCheck },
+        ].map(({ href, label, icon: Icon }) => {
+          const isActive = pathname.startsWith(href);
+          return (
+            <Link
+              key={href}
+              href={href}
+              className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
                 isActive
                   ? "bg-brand-500/10 text-brand-400 border border-brand-500/20"
                   : "text-text-secondary hover:text-text-primary hover:bg-surface-3 border border-transparent"

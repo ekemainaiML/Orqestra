@@ -1,0 +1,124 @@
+id: government_procurement
+name: Government Procurement Review
+description: "Multi-stakeholder review of government procurement proposals — technical, financial, compliance, legal, and budget evaluation."
+
+departments:
+  - id: procurement_review
+    role: Procurement Review
+    model_tier: operational
+    objectives:
+      - Evaluate vendor suitability against tender requirements
+      - Verify tender documentation completeness and compliance
+      - Assess procurement history and past performance
+      - Recommend vendor selection with supporting evidence
+    policies:
+      - Prefer vendors with proven track record in public sector contracts
+      - All tender submissions must meet minimum compliance threshold of 0.85
+      - Local content preference applies where regulations require
+    tools:
+      - supplier_db
+
+  - id: technical_evaluation
+    role: Technical Evaluation
+    model_tier: operational
+    objectives:
+      - Assess technical proposal quality against tender specifications
+      - Verify vendor capability to deliver specified requirements
+      - Identify technical risks and mitigation strategies
+      - Score technical compliance and innovation
+    policies:
+      - Technical proposal must meet or exceed all mandatory specifications
+      - Substitution of specified materials requires approval
+      - Warranty and support terms must meet minimum standards
+    tools: []
+
+  - id: finance
+    role: Finance
+    model_tier: operational
+    objectives:
+      - Evaluate proposal against approved budget
+      - Assess financial risk of vendor and proposed terms
+      - Verify pricing reasonableness and market alignment
+      - Recommend optimal payment structure
+    policies:
+      - Total cost must not exceed approved budget
+      - Government procurement requires competitive pricing verification
+      - Payment terms follow standard government net-90 policy
+    tools:
+      - pricing_engine
+      - policy_engine
+
+  - id: compliance
+    role: Compliance
+    model_tier: operational
+    objectives:
+      - Validate regulatory and statutory compliance of proposal
+      - Verify vendor certifications, licenses, and registrations
+      - Assess adherence to procurement laws and ethical standards
+      - Flag compliance risks and required remediation
+    policies:
+      - All vendors must hold valid tax clearance certificate
+      - No conflicts of interest may exist between evaluators and vendors
+      - Compliance score must be >= 0.90 for award recommendation
+    tools:
+      - policy_engine
+
+  - id: legal
+    role: Legal
+    model_tier: operational
+    objectives:
+      - Review proposed contractual terms and conditions
+      - Assess liability, indemnity, and dispute resolution provisions
+      - Verify alignment with procurement regulations and laws
+      - Recommend contract structure and special conditions
+    policies:
+      - All contracts must include standard government clauses
+      - Liability limits must not exceed prescribed thresholds
+      - Dispute resolution must specify governing law and jurisdiction
+    tools: []
+
+  - id: procurement_director
+    role: Procurement Director
+    model_tier: executive
+    objectives:
+      - Synthesize all department evaluations into coherent recommendation
+      - Adjudicate conflicts between technical, financial, and compliance assessments
+      - Ensure all regulatory and policy requirements are met
+      - Make final award recommendation with clear rationale
+    policies:
+      - Consider all department evaluations before deciding
+      - Explain why alternative vendors were rejected
+      - Flag any unresolved concerns for human procurement officer
+      - Maintain recommendation confidence above 70%
+    tools:
+      - policy_engine
+
+decision_dimensions:
+  - technical_capability
+  - cost_feasibility
+  - regulatory_compliance
+  - vendor_reliability
+  - delivery_risk
+
+governance:
+  challenge_round: true
+  consensus_threshold: 0.80
+  deadlock_resolution: escalate
+
+policies:
+  - id: budget_compliance
+    rule: total_cost <= approved_budget
+    hard_constraint: true
+  - id: compliance_threshold
+    rule: compliance_score >= 0.90
+    hard_constraint: true
+  - id: local_content
+    rule: local content preference applies where mandated
+    hard_constraint: false
+  - id: competitive_pricing
+    rule: pricing must be verified against market benchmarks
+    hard_constraint: false
+
+approval:
+  required_role: procurement_director
+  auto_approve_confidence: 0.95
