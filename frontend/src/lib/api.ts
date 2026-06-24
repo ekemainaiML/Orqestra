@@ -1,6 +1,6 @@
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
-const RUN_TIMEOUT_MS = 300_000;
+const RUN_TIMEOUT_MS = 600_000;
 
 function getAuthHeaders(): Record<string, string> {
   if (typeof window === "undefined") return {};
@@ -54,21 +54,23 @@ export async function uploadFile(path: string, file: File): Promise<unknown> {
   return res.json();
 }
 
+import type { CustomerSearchResult, ToolResults, Case, CaseDetail, DeliberationResult, Directive, WorkflowSummary } from "./types";
+
 export const api = {
   workflows: {
     list: () =>
-      fetchJSON<{ workflows: import("./types").WorkflowSummary[] }>("/cases/workflows"),
+      fetchJSON<{ workflows: WorkflowSummary[] }>("/cases/workflows"),
   },
   cases: {
-    list: (query?: string) => fetchJSON<import("./types").Case[]>(`/cases${query ? `?${query}` : ""}`),
-    get: (id: string) => fetchJSON<import("./types").CaseDetail>(`/cases/${id}`),
+    list: (query?: string) => fetchJSON<Case[]>(`/cases${query ? `?${query}` : ""}`),
+    get: (id: string) => fetchJSON<CaseDetail>(`/cases/${id}`),
     create: (data: { customer_id: string; request_text: string; workflow_type?: string }) =>
-      fetchJSON<import("./types").Case>("/cases", {
+      fetchJSON<Case>("/cases", {
         method: "POST",
         body: JSON.stringify(data),
       }),
     run: (id: string) =>
-      fetchJSON<import("./types").DeliberationResult>(`/cases/${id}/run`, {
+      fetchJSON<DeliberationResult>(`/cases/${id}/run`, {
         method: "POST",
       }),
     approve: (id: string) =>
@@ -83,12 +85,34 @@ export const api = {
     brief: (id: string) => fetchJSON(`/cases/${id}/brief`),
     directives: {
       list: (id: string) =>
-        fetchJSON<import("./types").Directive[]>(`/cases/${id}/directives`),
+        fetchJSON<Directive[]>(`/cases/${id}/directives`),
       delete: (caseId: string, directiveId: string) =>
         fetchJSON<{ message: string }>(`/cases/${caseId}/directives/${directiveId}`, {
           method: "DELETE",
         }),
     },
+    customers: {
+      search: (q: string) =>
+        fetchJSON<{ customers: CustomerSearchResult[] }>(`/cases/customers/search?q=${encodeURIComponent(q)}`),
+    },
+    toolResults: (id: string) =>
+      fetchJSON<ToolResults>(`/cases/${id}/tool-results`),
+    clarify: (id: string) =>
+      fetchJSON<{ status: string; case_id: string; completeness: number; questions: string[] }>(
+        `/cases/${id}/clarify`, { method: "POST" }
+      ),
+    respondClarify: (id: string, answers: Record<string, string>) =>
+      fetchJSON<{ status: string; case_id: string; message: string }>(
+        `/cases/${id}/clarify/respond`, {
+          method: "POST",
+          body: JSON.stringify({ answers }),
+        }
+      ),
+    recoveryCheck: (id: string) =>
+      fetchJSON<{
+        case_id: string; status: string; can_continue: boolean;
+        degraded_mode: boolean; reasons: string[]; checks: Record<string, boolean>;
+      }>(`/cases/${id}/recovery-check`),
   },
   demo: {
     list: () => fetchJSON<import("./types").DemoCase[]>("/demo/cases"),

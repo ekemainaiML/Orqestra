@@ -27,6 +27,7 @@ const EVENT_ICONS: Record<string, string> = {
   modification: "📐",
   completed: "🎯",
   escalated: "🚨",
+  tool_call_executed: "🔧",
 };
 
 export default function AuditPage() {

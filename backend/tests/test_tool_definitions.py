@@ -23,8 +23,11 @@ class TestToolDefinitions:
         assert "calculate_price" in names
         assert "get_exchange_rate" in names
 
-    def test_get_tool_names_handles_empty_list(self):
-        assert get_tool_names_for_agent(["customer_db"]) == []
+    def test_get_tool_names_maps_customer_db(self):
+        assert get_tool_names_for_agent(["customer_db"]) == [
+            "lookup_customer", "get_customer_history",
+            "get_open_opportunities", "get_customer_value",
+        ]
 
     def test_get_tool_definitions_returns_matching(self):
         names = ["calculate_price", "check_availability"]

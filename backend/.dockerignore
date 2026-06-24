@@ -10,4 +10,4 @@ venv
 .pytest_cache
 alembic/versions
 tests
-seed
+# seed — needed at runtime for seed/load.py and demo_cases endpoint

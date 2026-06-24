@@ -19,6 +19,8 @@ Orqestra is an AI-powered platform where specialized agents — Sales, Finance, 
 
 **Demo workflow:** Customer orders 500 solar-powered street lights with 14-day delivery. Agents deliberate, the Operations Manager adjudicates, and a human operator approves, rejects, or modifies the decision.
 
+> **New to Orqestra?** Start with the [User Guide](docs/user-guide.md) for a step-by-step walkthrough of every feature.
+
 ---
 
 ## Architecture
@@ -136,6 +138,12 @@ The Demo Case Library includes 4 pre-configured scenarios accessed from the fron
 To launch a demo: open the Demo Library page and click "Launch" on any scenario.
 
 ---
+
+## Documentation
+
+- **[User Guide](docs/user-guide.md)** — Full walkthrough of every feature, page, and workflow
+- **[Deployment Guide](docs/deployment.md)** — Local, Docker, and production deployment
+- **[Changelog](CHANGELOG.md)** — Release history and migration notes
 
 ## Key Features
 

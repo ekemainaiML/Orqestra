@@ -5,10 +5,11 @@ from sqlalchemy import DateTime, Enum, Float, String, func
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
+from app.models.mixins import TenantMixin
 from app.services.database import Base
 
 
-class Memory(Base):
+class Memory(TenantMixin, Base):
     __tablename__ = "memories"
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)

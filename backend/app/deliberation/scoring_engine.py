@@ -1,6 +1,6 @@
 from typing import Any
 
-SCORE_DIMENSIONS = [
+DEFAULT_DIMENSIONS = [
     "customer_satisfaction",
     "profitability",
     "operational_risk",
@@ -8,7 +8,7 @@ SCORE_DIMENSIONS = [
     "policy_compliance",
 ]
 
-AGENT_EXPERTISE: dict[str, list[str]] = {
+DEFAULT_EXPERTISE: dict[str, list[str]] = {
     "sales": ["customer_satisfaction"],
     "finance": ["profitability", "policy_compliance"],
     "inventory": ["operational_risk", "delivery_reliability"],
@@ -16,7 +16,7 @@ AGENT_EXPERTISE: dict[str, list[str]] = {
     "logistics": ["delivery_reliability", "operational_risk"],
 }
 
-DIMENSION_KEYWORDS: dict[str, list[str]] = {
+DEFAULT_KEYWORDS: dict[str, list[str]] = {
     "customer_satisfaction": [
         "customer", "client", "satisfaction", "deadline", "quality",
         "relationship", "service", "support", "complaint", "feedback",
@@ -40,9 +40,12 @@ DIMENSION_KEYWORDS: dict[str, list[str]] = {
 }
 
 
-def _score_from_recommendation(rec: dict[str, Any], dimension: str) -> float:
+def _score_from_recommendation(
+    rec: dict[str, Any], dimension: str,
+    dimension_keywords: dict[str, list[str]] | None = None,
+) -> float:
     text = _get_recommendation_text(rec).lower()
-    keywords = DIMENSION_KEYWORDS.get(dimension, [])
+    keywords = (dimension_keywords or DEFAULT_KEYWORDS).get(dimension, [])
 
     if not text:
         return 0.5
@@ -83,16 +86,25 @@ def _estimate_risk_count(recommendations: list[dict[str, Any]]) -> list[str]:
     return unique
 
 
-def calculate_scores(recommendations: list[dict[str, Any]]) -> dict[str, Any]:
-    dimension_scores: dict[str, list[float]] = {d: [] for d in SCORE_DIMENSIONS}
+def calculate_scores(
+    recommendations: list[dict[str, Any]],
+    *,
+    decision_dimensions: list[str] | None = None,
+    agent_expertise: dict[str, list[str]] | None = None,
+    dimension_keywords: dict[str, list[str]] | None = None,
+) -> dict[str, Any]:
+    dimensions = decision_dimensions or DEFAULT_DIMENSIONS
+    expertise = agent_expertise or DEFAULT_EXPERTISE
+
+    dimension_scores: dict[str, list[float]] = {d: [] for d in dimensions}
     agent_scores: dict[str, dict[str, float]] = {}
 
     for rec in recommendations:
         agent_id = rec.get("agent_id", "unknown")
         agent_scores[agent_id] = {}
 
-        for dim in AGENT_EXPERTISE.get(agent_id, []):
-            score = _score_from_recommendation(rec, dim)
+        for dim in expertise.get(agent_id, []):
+            score = _score_from_recommendation(rec, dim, dimension_keywords)
             dimension_scores[dim].append(score)
             agent_scores[agent_id][dim] = round(score, 2)
 
@@ -103,7 +115,7 @@ def calculate_scores(recommendations: list[dict[str, Any]]) -> dict[str, Any]:
         else:
             consensus[dim] = 0.0
 
-    overall = round(sum(consensus.values()) / len(consensus), 2)
+    overall = round(sum(consensus.values()) / len(consensus), 2) if consensus else 0.0
 
     identified_risks = _estimate_risk_count(recommendations)
 
@@ -113,7 +125,7 @@ def calculate_scores(recommendations: list[dict[str, Any]]) -> dict[str, Any]:
         "agent_scores": agent_scores,
         "risks": identified_risks,
         "score_breakdown": {
-            "dimensions_evaluated": [d for d in SCORE_DIMENSIONS if dimension_scores[d]],
+            "dimensions_evaluated": [d for d in dimensions if dimension_scores[d]],
             "agents_contributing": list(agent_scores.keys()),
         },
     }

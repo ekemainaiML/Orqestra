@@ -50,6 +50,12 @@ export interface DashboardMetrics {
   average_confidence: number;
   total_events: number;
   memory_retrievals: number;
+  approval_rate: number;
+  escalation_rate: number;
+  memory_utilization_rate: number;
+  avg_deliberation_time_s: number;
+  department_performance: Record<string, number>;
+  pending_approval: number;
 }
 
 export interface BenchmarkResult {
@@ -142,4 +148,24 @@ export interface DemoCase {
   customer_id: string;
   request_text: string;
   description: string;
+}
+
+export interface CustomerSearchResult {
+  id: string;
+  name: string;
+  email: string;
+  company: string;
+}
+
+export interface ToolCallResult {
+  actor: string;
+  arguments: Record<string, unknown>;
+  result: Record<string, unknown>;
+  timestamp: string | null;
+}
+
+export interface ToolResults {
+  case_id: string;
+  tools: Record<string, ToolCallResult[]>;
+  tool_count: number;
 }

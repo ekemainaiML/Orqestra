@@ -3,10 +3,11 @@ from datetime import datetime
 from sqlalchemy import Boolean, DateTime, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column
 
+from app.models.mixins import TenantMixin
 from app.services.database import Base
 
 
-class WorkflowConfigModel(Base):
+class WorkflowConfigModel(TenantMixin, Base):
     __tablename__ = "workflow_configs"
 
     id: Mapped[str] = mapped_column(String(64), primary_key=True)

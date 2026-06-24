@@ -11,8 +11,9 @@ from app.api import admin, benchmark, cases, dashboard, demo, events
 from app.auth.middleware import AuthMiddleware
 from app.auth.router import _hash_password
 from app.auth.router import router as auth_router
+from app.auth.tenant import TenantMiddleware
 from app.middleware.error_handler import ErrorHandlerMiddleware
-from app.models import Base, UserModel, WorkflowConfigModel
+from app.models import Base, Tenant, UserModel, WorkflowConfigModel
 from app.services.database import get_async_session, get_engine
 from app.services.logging import RequestLoggingMiddleware, setup_logging
 from app.services.metrics import metrics
@@ -74,12 +75,20 @@ async def lifespan(app: FastAPI):
         await conn.run_sync(Base.metadata.create_all)
     await _migrate_enum_columns()
     async with get_async_session()() as session:
+        existing_tenant = await session.scalar(select(Tenant).where(Tenant.slug == "default"))
+        if existing_tenant is None:
+            session.add(Tenant(name="Default", slug="default"))
+            await session.commit()
+            print("  ✓ Seeded default tenant 'default'")
+
         existing = await session.scalar(select(UserModel).limit(1))
         if existing is None:
+            tenant = await session.scalar(select(Tenant).where(Tenant.slug == "default"))
             session.add(
                 UserModel(
                     username=settings.auth_username,
                     password_hash=_hash_password(settings.auth_password),
+                    tenant_id=tenant.id if tenant else None,
                 )
             )
             await session.commit()
@@ -89,7 +98,7 @@ async def lifespan(app: FastAPI):
     await get_engine().dispose()
 
 
-app = FastAPI(title="Orqestra", version="0.1.0", lifespan=lifespan)
+app = FastAPI(title="Orqestra", version="0.2.1", lifespan=lifespan)
 
 _cors_origins = [
     "http://localhost:3000",
@@ -105,6 +114,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+app.add_middleware(TenantMiddleware)
 app.add_middleware(AuthMiddleware)
 app.add_middleware(ErrorHandlerMiddleware)
 app.add_middleware(RequestLoggingMiddleware)

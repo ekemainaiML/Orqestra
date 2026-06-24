@@ -1,5 +1,7 @@
 from typing import Any
 
+from app.business_tools.base import BaseTool
+
 SUPPLIERS: dict[str, dict[str, Any]] = {
     "solartech": {
         "id": "b2c3d4e5-0001-4000-8000-000000000001",
@@ -34,19 +36,27 @@ SUPPLIERS: dict[str, dict[str, Any]] = {
 }
 
 
-async def find_suppliers(region: str | None = None, min_reliability: float = 0.0) -> list[dict[str, Any]]:
-    results = []
-    for s in SUPPLIERS.values():
-        if region and s["region"].lower() != region.lower():
-            continue
-        if s["reliability_score"] < min_reliability:
-            continue
-        results.append(s)
-    return sorted(results, key=lambda x: x["reliability_score"], reverse=True)
+class FindSuppliersTool(BaseTool):
+    name = "find_suppliers"
+    description = "Find suppliers matching region and minimum reliability criteria"
+
+    async def execute(self, region: str | None = None, min_reliability: float = 0.0) -> list[dict[str, Any]]:
+        results = []
+        for s in SUPPLIERS.values():
+            if region and s["region"].lower() != region.lower():
+                continue
+            if s["reliability_score"] < min_reliability:
+                continue
+            results.append(s)
+        return sorted(results, key=lambda x: x["reliability_score"], reverse=True)
 
 
-async def get_supplier(supplier_id: str) -> dict[str, Any] | None:
-    for s in SUPPLIERS.values():
-        if s["id"] == supplier_id:
-            return s
-    return None
+class GetSupplierTool(BaseTool):
+    name = "get_supplier"
+    description = "Get detailed information about a specific supplier by ID"
+
+    async def execute(self, supplier_id: str) -> dict[str, Any] | None:
+        for s in SUPPLIERS.values():
+            if s["id"] == supplier_id:
+                return s
+        return None

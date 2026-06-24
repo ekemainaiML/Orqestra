@@ -11,6 +11,9 @@ import {
   Zap,
   BarChart3,
   ChevronRight,
+  Clock,
+  TrendingUp,
+  Shield,
 } from "lucide-react";
 import { useDashboardMetrics } from "@/hooks/useDashboardMetrics";
 import { MetricCard } from "@/components/MetricCard";
@@ -61,6 +64,12 @@ export default function DashboardPage() {
 
   const hasFilters = search || statusFilter || wfFilter;
 
+  const formatDuration = (seconds: number) => {
+    if (seconds < 60) return `${seconds.toFixed(0)}s`;
+    if (seconds < 3600) return `${(seconds / 60).toFixed(1)}m`;
+    return `${(seconds / 3600).toFixed(1)}h`;
+  };
+
   return (
     <div className="space-y-8">
       <div>
@@ -72,11 +81,8 @@ export default function DashboardPage() {
 
       {loading ? (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          {[...Array(4)].map((_, i) => (
-            <div
-              key={i}
-              className="card animate-pulse h-28"
-            >
+          {[...Array(8)].map((_, i) => (
+            <div key={i} className="card animate-pulse h-28">
               <div className="h-3 w-20 bg-surface-4 rounded mb-4" />
               <div className="h-8 w-16 bg-surface-4 rounded" />
             </div>
@@ -88,7 +94,7 @@ export default function DashboardPage() {
             label="Cases Today"
             value={metrics.cases_today}
             icon={<Activity size={16} />}
-            trend="up"
+            trend={metrics.cases_today > 0 ? "up" : "neutral"}
           />
           <MetricCard
             label="Completed"
@@ -97,22 +103,76 @@ export default function DashboardPage() {
             trend={metrics.completed_cases > 0 ? "up" : "neutral"}
           />
           <MetricCard
+            label="Pending Approval"
+            value={metrics.pending_approval}
+            icon={<Clock size={16} />}
+            trend={metrics.pending_approval > 0 ? "neutral" : "up"}
+          />
+          <MetricCard
             label="Escalated"
             value={metrics.escalated_cases}
             icon={<AlertTriangle size={16} />}
             trend={metrics.escalated_cases > 0 ? "down" : "neutral"}
           />
           <MetricCard
+            label="Approval Rate"
+            value={`${(metrics.approval_rate * 100).toFixed(0)}%`}
+            icon={<Shield size={16} />}
+            trend={metrics.approval_rate >= 0.7 ? "up" : "down"}
+          />
+          <MetricCard
+            label="Escalation Rate"
+            value={`${(metrics.escalation_rate * 100).toFixed(0)}%`}
+            icon={<TrendingUp size={16} />}
+            trend={metrics.escalation_rate <= 0.2 ? "up" : "down"}
+          />
+          <MetricCard
             label="Avg Confidence"
             value={`${(metrics.average_confidence * 100).toFixed(0)}%`}
             icon={<Brain size={16} />}
-            format="percent"
+          />
+          <MetricCard
+            label="Avg Deliberation"
+            value={formatDuration(metrics.avg_deliberation_time_s)}
+            icon={<Clock size={16} />}
           />
         </div>
       ) : (
         <div className="card text-red-400 text-sm flex items-center gap-2">
           <AlertTriangle size={16} />
           Failed to load metrics
+        </div>
+      )}
+
+      {metrics && Object.keys(metrics.department_performance).length > 0 && (
+        <div>
+          <h2 className="text-lg font-semibold text-text-primary mb-3">
+            Department Performance
+          </h2>
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+            {Object.entries(metrics.department_performance).map(([dept, conf]) => (
+              <div key={dept} className="card p-3">
+                <div className="text-xs text-text-muted uppercase tracking-wider mb-1 truncate">
+                  {dept.replace(/_/g, " ")}
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="flex-1 h-1.5 bg-surface-4 rounded-full overflow-hidden">
+                    <div
+                      className={`h-full rounded-full transition-all ${
+                        conf >= 0.7 ? "bg-emerald-500" : conf >= 0.4 ? "bg-amber-500" : "bg-red-500"
+                      }`}
+                      style={{ width: `${conf * 100}%` }}
+                    />
+                  </div>
+                  <span className={`text-xs font-medium ${
+                    conf >= 0.7 ? "text-emerald-400" : conf >= 0.4 ? "text-amber-400" : "text-red-400"
+                  }`}>
+                    {(conf * 100).toFixed(0)}%
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       )}
 
@@ -181,8 +241,14 @@ export default function DashboardPage() {
                     <th className="text-left text-xs font-medium text-text-muted uppercase tracking-wider px-4 py-3">
                       Case
                     </th>
+                    <th className="text-left text-xs font-medium text-text-muted uppercase tracking-wider px-4 py-3">
+                      Customer
+                    </th>
                     <th className="text-left text-xs font-medium text-text-muted uppercase tracking-wider px-4 py-3 hidden md:table-cell">
                       Request
+                    </th>
+                    <th className="text-left text-xs font-medium text-text-muted uppercase tracking-wider px-4 py-3 hidden lg:table-cell">
+                      Created
                     </th>
                     <th className="text-left text-xs font-medium text-text-muted uppercase tracking-wider px-4 py-3 hidden lg:table-cell">
                       Workflow
@@ -210,10 +276,22 @@ export default function DashboardPage() {
                           v{c.iteration}
                         </span>
                       </td>
+                      <td className="px-4 py-3">
+                        <span className="text-xs font-mono text-text-secondary">
+                          {c.customer_id.slice(0, 8)}
+                        </span>
+                      </td>
                       <td className="px-4 py-3 hidden md:table-cell">
-                        <p className="text-sm text-text-secondary truncate max-w-[300px]">
+                        <p className="text-sm text-text-secondary truncate max-w-[250px]">
                           {c.request_text}
                         </p>
+                      </td>
+                      <td className="px-4 py-3 hidden lg:table-cell">
+                        <span className="text-xs text-text-muted">
+                          {c.created_at
+                            ? new Date(c.created_at).toLocaleDateString()
+                            : "--"}
+                        </span>
                       </td>
                       <td className="px-4 py-3 hidden lg:table-cell">
                         <span className="text-xs text-text-muted">
@@ -321,6 +399,12 @@ export default function DashboardPage() {
                   </span>
                   <span className="font-mono text-text-primary">
                     {metrics?.memory_retrievals ?? "--"}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-text-secondary">Memory Utilization</span>
+                  <span className="font-mono text-text-primary">
+                    {metrics ? `${(metrics.memory_utilization_rate * 100).toFixed(0)}%` : "--"}
                   </span>
                 </div>
                 <div className="flex items-center justify-between text-sm">

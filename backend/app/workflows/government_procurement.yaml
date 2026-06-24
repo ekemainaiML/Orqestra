@@ -47,6 +47,7 @@ departments:
     tools:
       - pricing_engine
       - policy_engine
+      - payment_service
 
   - id: compliance
     role: Compliance

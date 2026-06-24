@@ -24,13 +24,13 @@ for (const s of STEPS) {
 }
 
 export function DeliberationProgress({ events }: { events: WorkflowEvent[] }) {
-  const latest = events.length > 0 ? events[events.length - 1] : null;
-  const step = latest ? STEP_MAP[latest.event_type] ?? null : null;
   const recent = events.slice(-10).reverse();
 
-  const currentStepIdx = latest
-    ? STEPS.findIndex((s) => s.event === latest.event_type)
-    : -1;
+  const currentStepIdx = events.reduce((maxIdx, evt) => {
+    const idx = STEPS.findIndex((s) => s.event === evt.event_type);
+    return Math.max(maxIdx, idx);
+  }, -1);
+  const step = currentStepIdx >= 0 ? STEPS[currentStepIdx] : null;
   const percent =
     currentStepIdx >= 0
       ? Math.round(((currentStepIdx + 1) / STEPS.length) * 100)
@@ -76,15 +76,19 @@ export function DeliberationProgress({ events }: { events: WorkflowEvent[] }) {
         })}
       </div>
 
-      {step && latest && (
+      {step && events.length > 0 && (
         <div className="flex items-center gap-2 mb-3 p-2 rounded-lg bg-surface-4/50">
           <step.icon size={16} className="text-brand-400" />
           <span className="text-sm font-medium text-text-primary">{step.label}</span>
-          {latest.actor && (
-            <span className="text-xs text-text-muted">
-              &middot; Currently consulting <strong>{latest.actor as string}</strong>
-            </span>
-          )}
+          {(() => {
+            const latestEvent = events[events.length - 1];
+            const actor = latestEvent?.actor;
+            return actor ? (
+              <span className="text-xs text-text-muted">
+                &middot; Currently consulting <strong>{actor as string}</strong>
+              </span>
+            ) : null;
+          })()}
         </div>
       )}
 

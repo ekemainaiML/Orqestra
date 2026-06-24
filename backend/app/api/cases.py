@@ -20,6 +20,11 @@ from app.governance.approval_handler import (
     reject_case,
 )
 from app.governance.brief_generator import generate_brief
+from app.governance.clarification import (
+    compute_completeness,
+    generate_clarification_request,
+)
+from app.governance.recovery import PolicyEngine
 from app.memory.memory_service import MemoryService
 from app.models.case import Case
 from app.models.customer import Customer
@@ -37,6 +42,74 @@ from app.workflows.loader import (
 
 router = APIRouter(prefix="/cases", tags=["cases"])
 memory_service = MemoryService()
+
+
+@router.get("/customers/search")
+async def search_customers(
+    q: str = "",
+    session: AsyncSession = Depends(get_session),
+):
+    from app.business_tools.crm.hubspot import HubSpotCustomerTool
+
+    stmt = select(Customer)
+    if q:
+        stmt = stmt.where(
+            Customer.name.ilike(f"%{q}%")
+            | Customer.email.ilike(f"%{q}%")
+            | Customer.company.ilike(f"%{q}%")
+        )
+    stmt = stmt.order_by(Customer.name).limit(20)
+    result = await session.execute(stmt)
+    customers = result.scalars().all()
+
+    results = [
+        {
+            "id": str(c.id),
+            "name": c.name,
+            "email": c.email,
+            "company": c.company or "",
+        }
+        for c in customers
+    ]
+
+    hubspot = HubSpotCustomerTool()
+    if q and hubspot._is_configured():
+        try:
+            enriched = await hubspot.lookup_customer(q)
+            if enriched.get("status") == "ok" and enriched.get("source") == "hubspot":
+                pass
+        except Exception:
+            pass
+
+    return {"customers": results}
+
+
+@router.get("/{case_id}/tool-results")
+async def get_tool_results(case_id: str, session: AsyncSession = Depends(get_session)):
+    try:
+        uid = uuid.UUID(case_id)
+    except ValueError:
+        raise HTTPException(status_code=422, detail="Invalid case ID")
+    case = await session.get(Case, uid)
+    if not case:
+        raise HTTPException(status_code=404, detail="Case not found")
+
+    tools: dict[str, list[dict[str, Any]]] = {}
+    for e in case.events:
+        if e.event_type == "tool_call_executed" and e.payload:
+            tool_name = e.payload.get("tool", "unknown")
+            result = e.payload.get("result", {})
+            tools.setdefault(tool_name, []).append({
+                "actor": e.actor,
+                "arguments": e.payload.get("arguments", {}),
+                "result": result if isinstance(result, dict) else {},
+                "timestamp": e.timestamp.isoformat() if e.timestamp else None,
+            })
+    return {
+        "case_id": case_id,
+        "tools": tools,
+        "tool_count": sum(len(v) for v in tools.values()),
+    }
 
 
 @router.get("/workflows")
@@ -194,7 +267,11 @@ async def _run_deliberation(case_id: str, session: AsyncSession) -> dict[str, An
     case.status = sm.current_state
     await session.commit()
 
-    consensus = calculate_scores(assessment["recommendations"])
+    consensus = calculate_scores(
+        assessment["recommendations"],
+        decision_dimensions=config.decision_dimensions or None,
+        agent_expertise=config.dimension_mappings or None,
+    )
     await publish_event(case_id, "consensus_calculated", "scoring_engine", consensus, session=session)
 
     sm = DeliberationStateMachine(case.status)
@@ -246,7 +323,11 @@ async def _run_deliberation(case_id: str, session: AsyncSession) -> dict[str, An
         for ch in challenge_result["challenges"]:
             await publish_event(case_id, "challenge_issued", ch.get("source_agent", "unknown"), ch, session=session)
 
-        consensus = calculate_scores(assessment["recommendations"])
+        consensus = calculate_scores(
+            assessment["recommendations"],
+            decision_dimensions=config.decision_dimensions or None,
+            agent_expertise=config.dimension_mappings or None,
+        )
         await publish_event(case_id, "consensus_calculated", "scoring_engine", consensus, session=session)
 
         decision_result = await adjudicate(
@@ -408,4 +489,116 @@ async def get_brief(case_id: str, session: AsyncSession = Depends(get_session)):
         "status": case.status,
         "iteration": case.iteration,
         "confidence": case.confidence,
+    }
+
+
+@router.post("/{case_id}/clarify")
+async def analyze_clarity(case_id: str, session: AsyncSession = Depends(get_session)):
+    try:
+        uid = uuid.UUID(case_id)
+    except ValueError:
+        raise HTTPException(status_code=422, detail="Invalid case ID")
+    case = await session.get(Case, uid)
+    if not case:
+        raise HTTPException(status_code=404, detail="Case not found")
+
+    completeness = compute_completeness(case.request_text)
+
+    if completeness["needs_clarification"]:
+        clarification = generate_clarification_request(case.request_text, completeness)
+        sm = DeliberationStateMachine(case.status)
+        try:
+            sm.transition("clarification_required")
+            case.status = sm.current_state
+            await publish_event(case_id, "clarification_requested", "system", {
+                "completeness_score": completeness["completeness"],
+                "questions": clarification["questions"],
+                "missing_fields": completeness["missing_count"],
+            }, session=session)
+            await session.commit()
+        except Exception:
+            await session.rollback()
+            raise HTTPException(status_code=409, detail="Cannot transition to clarification_required")
+
+        return {
+            "status": "clarification_required",
+            "case_id": case_id,
+            "completeness": completeness["completeness"],
+            **clarification,
+        }
+
+    return {
+        "status": case.status,
+        "case_id": case_id,
+        "completeness": completeness["completeness"],
+        "needs_clarification": False,
+        "questions": [],
+    }
+
+
+@router.post("/{case_id}/clarify/respond")
+async def respond_clarification(
+    case_id: str,
+    body: dict[str, Any],
+    session: AsyncSession = Depends(get_session),
+):
+    try:
+        uid = uuid.UUID(case_id)
+    except ValueError:
+        raise HTTPException(status_code=422, detail="Invalid case ID")
+    case = await session.get(Case, uid)
+    if not case:
+        raise HTTPException(status_code=404, detail="Case not found")
+    if case.status != "clarification_required":
+        raise HTTPException(status_code=400, detail="Case is not in clarification_required state")
+
+    answers = body.get("answers", {})
+    if not answers:
+        raise HTTPException(status_code=422, detail="No answers provided")
+
+    sm = DeliberationStateMachine(case.status)
+    try:
+        sm.transition("independent_assessment")
+        case.status = sm.current_state
+        await publish_event(case_id, "clarification_answered", "system", {
+            "answers": answers,
+            "answer_count": len(answers),
+        }, session=session)
+        await session.commit()
+    except Exception:
+        await session.rollback()
+        raise HTTPException(status_code=409, detail="Cannot transition from clarification_required")
+
+    return {"status": case.status, "case_id": case_id, "message": "Clarification accepted, resuming deliberation"}
+
+
+@router.get("/{case_id}/recovery-check")
+async def check_recovery(case_id: str, session: AsyncSession = Depends(get_session)):
+    try:
+        uid = uuid.UUID(case_id)
+    except ValueError:
+        raise HTTPException(status_code=422, detail="Invalid case ID")
+    case = await session.get(Case, uid)
+    if not case:
+        raise HTTPException(status_code=404, detail="Case not found")
+
+    events_result = await get_events(case_id, session=session)
+    assessment = {
+        "recommendations": [
+            e["payload"] for e in events_result
+            if e["event_type"] == "recommendation_submitted" and isinstance(e["payload"], dict)
+        ],
+    }
+
+    engine = PolicyEngine()
+    recovery = engine.can_continue({
+        "completeness": case.completeness or 0.0,
+        "confidence": case.confidence or 0.0,
+        "status": case.status,
+    }, assessment)
+
+    return {
+        "case_id": case_id,
+        "status": case.status,
+        **recovery,
     }

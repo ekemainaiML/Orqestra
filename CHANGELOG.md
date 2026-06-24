@@ -14,6 +14,26 @@
 - `CORS_ORIGINS` env var for flexible CORS configuration
 - `python-multipart` dependency for admin file upload support
 - **New domain: Customer Onboarding** — `CustomerSuccessAgent`, `onboarding_service` tool (KYC, credit check, document verification), `customer_onboarding.yaml` workflow with 5 departments (Customer Success, Sales, Finance, Compliance, Ops Manager)
+- **BaseTool adapter layer** — `BaseTool`/`APITool` base classes, `ToolRegistry`, `CircuitBreaker`, `RateLimiter` in `business_tools/base.py` and `business_tools/registry.py`
+- Tool directory structure — `simulated/`, `crm/`, `erp/`, `payments/`, `logistics/` sub-packages
+- Migrated all 10 simulated tools to `BaseTool` subclasses in `simulated/`
+
+### Changed
+- `definitions.py` — `TOOL_EXECUTOR` now sourced from `tool_registry.executor_map()`
+- `qwen_client.py` — tool dispatch resolves through the registry
+- `benchmark.py` — tool calls go through `tool_registry["tool_name"](**kwargs)`
+- **HubSpot CRM integration** — 4 new tools (lookup_customer, get_customer_history, get_open_opportunities, get_customer_value) with real API path + simulated fallback
+- `customer_db` agent tool now maps to HubSpot CRM tools instead of empty list
+- `settings.py` — added `hubspot_api_key`, `hubspot_base_url`, `odoo_url`, `odoo_db`, `odoo_username`, `odoo_password`
+- **Odoo ERP integration** — 5 new tools (create_rfq, create_purchase_order, check_budgets, validate_approvals, get_reorder_thresholds) with Odoo XML-RPC path + simulated fallback
+- `erp_service` agent tool group maps to the 5 ERP tools
+- **Paystack integration** — 4 new tools (verify_payment, check_transaction_history, assess_credit_risk, recommend_payment_terms) with simulated fallback
+- `payment_service` added to Finance agent in all 3 workflows
+- **DHL/GIG logistics integration** — 4 new tools (estimate_shipping_cost, validate_delivery_feasibility, check_shipping_routes, track_shipment) with 9 African/international routes + 5 sample tracking records
+- `logistics_service` added to Logistics agent in order_fulfillment.yaml (replaced supplier_db)
+- **Multi-tenancy** — Tenant model, TenantMixin on all 8 data tables, do_orm_execute auto-filter, before_flush auto-set on INSERT, TenantMiddleware (JWT + header), token now includes tenant_id, POST/GET /auth/tenants endpoints, default tenant seeded on startup
+- **Notification system** — EmailSender (SMTP via aiosmtplib), SlackNotifier (webhook), NotificationService integrated into event publisher, triggers on escalated/completed/rejected/failed/approval_pending events
+- **Qwen client hardening** — Added retry logic (3 attempts, exponential backoff 0/10/30s) to `assess_with_tools` and `assess_raw`; added `aiosmtplib` dependency (government_procurement, order_fulfillment, customer_onboarding)
 
 ### Fixed
 - Frontend SSE timeout: `RUN_TIMEOUT_MS` increased from 120s → 300s

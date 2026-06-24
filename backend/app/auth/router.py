@@ -2,12 +2,14 @@ import hashlib
 import hmac
 import os
 import time
+import uuid
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.models.tenant import Tenant
 from app.models.user import UserModel
 from app.services.database import get_session
 from app.services.settings import settings
@@ -32,27 +34,29 @@ def _verify_password(password: str, stored: str) -> bool:
         return False
 
 
-def _make_token(username: str) -> str:
-    payload = f"{username}:{int(time.time()) + TOKEN_EXPIRY_S}"
+def _make_token(username: str, tenant_id: str | None = None) -> str:
+    payload = f"{username}:{tenant_id or ''}:{int(time.time()) + TOKEN_EXPIRY_S}"
     sig = hmac.new(settings.jwt_secret.encode(), payload.encode(), hashlib.sha256).hexdigest()
     return f"{payload}:{sig}"
 
 
-def verify_token(token: str) -> str | None:
+def verify_token(token: str) -> tuple[str, str] | None:
     try:
         parts = token.split(":")
-        if len(parts) != 3:
+        if len(parts) != 4:
             return None
-        username, expiry_str, sig = parts
+        username, tenant_id_str, expiry_str, sig = parts
         expiry = int(expiry_str)
         if time.time() > expiry:
             return None
         expected = hmac.new(
-            settings.jwt_secret.encode(), f"{username}:{expiry}".encode(), hashlib.sha256
+            settings.jwt_secret.encode(),
+            f"{username}:{tenant_id_str}:{expiry}".encode(),
+            hashlib.sha256,
         ).hexdigest()
         if not hmac.compare_digest(sig, expected):
             return None
-        return username
+        return username, tenant_id_str
     except (ValueError, IndexError):
         return None
 
@@ -60,11 +64,14 @@ def verify_token(token: str) -> str | None:
 class SignupRequest(BaseModel):
     username: str
     password: str
+    tenant_slug: str | None = None
 
 
 class SignupResponse(BaseModel):
     message: str
     username: str
+    tenant_id: str | None = None
+    tenant_slug: str | None = None
 
 
 class LoginRequest(BaseModel):
@@ -75,7 +82,20 @@ class LoginRequest(BaseModel):
 class LoginResponse(BaseModel):
     token: str
     username: str
+    tenant_id: str | None = None
     message: str
+
+
+class CreateTenantRequest(BaseModel):
+    name: str
+    slug: str
+
+
+class TenantResponse(BaseModel):
+    id: str
+    name: str
+    slug: str
+    created_at: str | None = None
 
 
 @router.post("/signup", response_model=SignupResponse)
@@ -90,10 +110,29 @@ async def signup(req: SignupRequest, session: AsyncSession = Depends(get_session
     if existing:
         raise HTTPException(status_code=409, detail="Username already taken")
 
-    user = UserModel(username=username, password_hash=_hash_password(req.password))
+    tenant_id: uuid.UUID | None = None
+    tenant_slug: str | None = None
+    if req.tenant_slug:
+        tenant = await session.scalar(
+            select(Tenant).where(Tenant.slug == req.tenant_slug)
+        )
+        if tenant:
+            tenant_id = tenant.id
+            tenant_slug = tenant.slug
+
+    user = UserModel(
+        username=username,
+        password_hash=_hash_password(req.password),
+        tenant_id=tenant_id,
+    )
     session.add(user)
     await session.commit()
-    return SignupResponse(message="User created successfully", username=username)
+    return SignupResponse(
+        message="User created successfully",
+        username=username,
+        tenant_id=str(tenant_id) if tenant_id else None,
+        tenant_slug=tenant_slug,
+    )
 
 
 @router.post("/login", response_model=LoginResponse)
@@ -103,5 +142,43 @@ async def login(req: LoginRequest, session: AsyncSession = Depends(get_session))
         raise HTTPException(status_code=401, detail="Invalid credentials")
     if not _verify_password(req.password, user.password_hash):
         raise HTTPException(status_code=401, detail="Invalid credentials")
-    token = _make_token(req.username)
-    return LoginResponse(token=token, username=req.username, message="Login successful")
+    tenant_id_str = str(user.tenant_id) if user.tenant_id else ""
+    token = _make_token(req.username, tenant_id_str)
+    return LoginResponse(
+        token=token,
+        username=req.username,
+        tenant_id=tenant_id_str or None,
+        message="Login successful",
+    )
+
+
+@router.post("/tenants", response_model=TenantResponse)
+async def create_tenant(req: CreateTenantRequest, session: AsyncSession = Depends(get_session)):
+    slug = req.slug.strip().lower().replace(" ", "-")
+    existing = await session.scalar(select(Tenant).where(Tenant.slug == slug))
+    if existing:
+        raise HTTPException(status_code=409, detail="Tenant slug already exists")
+    tenant = Tenant(name=req.name.strip(), slug=slug)
+    session.add(tenant)
+    await session.commit()
+    return TenantResponse(
+        id=str(tenant.id),
+        name=tenant.name,
+        slug=tenant.slug,
+        created_at=tenant.created_at.isoformat() if tenant.created_at else None,
+    )
+
+
+@router.get("/tenants", response_model=list[TenantResponse])
+async def list_tenants(session: AsyncSession = Depends(get_session)):
+    result = await session.execute(select(Tenant))
+    tenants = result.scalars().all()
+    return [
+        TenantResponse(
+            id=str(t.id),
+            name=t.name,
+            slug=t.slug,
+            created_at=t.created_at.isoformat() if t.created_at else None,
+        )
+        for t in tenants
+    ]

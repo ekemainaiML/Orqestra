@@ -1,6 +1,17 @@
 "use client";
 import { useState } from "react";
-import { ChevronDown, ChevronRight, AlertTriangle, CheckCircle2, TrendingUp, TrendingDown } from "lucide-react";
+import {
+  ChevronDown,
+  ChevronRight,
+  AlertTriangle,
+  CheckCircle2,
+  TrendingUp,
+  TrendingDown,
+  Wrench,
+  MessageSquare,
+  Scale,
+  BookOpen,
+} from "lucide-react";
 import type { WorkflowEvent } from "@/lib/types";
 
 interface RecPayload {
@@ -21,12 +32,8 @@ export function DepartmentAssessments({ events }: { events: WorkflowEvent[] }) {
 
   if (recs.length === 0) return null;
 
-  const avgConfidence =
-    recs.reduce((s, r) => s + (r.payload?.confidence ?? 0), 0) / recs.length;
-  const dissenting = recs.filter(
-    (r) => (r.payload?.confidence ?? 0) < avgConfidence - 0.15
-  );
-
+  const avgConfidence = recs.reduce((s, r) => s + (r.payload?.confidence ?? 0), 0) / recs.length;
+  const dissenting = recs.filter((r) => (r.payload?.confidence ?? 0) < avgConfidence - 0.15);
   const executive = recs.find((r) => EXECUTIVE_ROLES.has(r.actor));
   const operational = recs.filter((r) => !EXECUTIVE_ROLES.has(r.actor));
 
@@ -46,7 +53,7 @@ export function DepartmentAssessments({ events }: { events: WorkflowEvent[] }) {
 
       <div className="space-y-2">
         {operational.map((rec) => (
-          <DepartmentCard key={rec.id} rec={rec} avgConfidence={avgConfidence} />
+          <DecisionCard key={rec.id} rec={rec} events={events} avgConfidence={avgConfidence} />
         ))}
       </div>
 
@@ -57,7 +64,7 @@ export function DepartmentAssessments({ events }: { events: WorkflowEvent[] }) {
             <h4 className="text-[10px] font-semibold text-text-muted uppercase tracking-wider mb-2">
               Executive Decision
             </h4>
-            <DepartmentCard rec={executive} avgConfidence={avgConfidence} isExecutive />
+            <DecisionCard rec={executive} events={events} avgConfidence={avgConfidence} isExecutive />
           </div>
         </>
       )}
@@ -65,12 +72,14 @@ export function DepartmentAssessments({ events }: { events: WorkflowEvent[] }) {
   );
 }
 
-function DepartmentCard({
+function DecisionCard({
   rec,
+  events,
   avgConfidence,
   isExecutive,
 }: {
   rec: { actor: string; payload: RecPayload; timestamp: string | null };
+  events: WorkflowEvent[];
   avgConfidence: number;
   isExecutive?: boolean;
 }) {
@@ -82,6 +91,19 @@ function DepartmentCard({
   const displayName = p.agent_id
     ? p.agent_id.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())
     : rec.actor.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+
+  const toolCalls = events.filter(
+    (e) => e.event_type === "tool_call_executed" && e.actor === rec.actor
+  );
+  const challengesReceived = events.filter(
+    (e) => e.event_type === "challenge_issued" &&
+      (e.payload as Record<string, unknown>)?.target_agent === rec.actor
+  );
+  const challengesIssued = events.filter(
+    (e) => e.event_type === "challenge_issued" &&
+      e.actor === rec.actor
+  );
+  const consensusEvents = events.filter((e) => e.event_type === "consensus_calculated");
 
   return (
     <div
@@ -123,14 +145,21 @@ function DepartmentCard({
           </p>
           <div className="flex items-center gap-3 mt-1.5">
             <ConfidenceBadge value={p.confidence} />
+            {toolCalls.length > 0 && (
+              <span className="flex items-center gap-1 text-xs text-text-muted">
+                <Wrench size={10} />
+                {toolCalls.length}
+              </span>
+            )}
+            {challengesReceived.length > 0 && (
+              <span className="flex items-center gap-1 text-xs text-amber-400">
+                <MessageSquare size={10} />
+                {challengesReceived.length} challenged
+              </span>
+            )}
             {p.risks && p.risks.length > 0 && (
               <span className="text-xs text-text-muted">
                 {p.risks.length} risk{p.risks.length !== 1 ? "s" : ""}
-              </span>
-            )}
-            {p.factors && p.factors.length > 0 && (
-              <span className="text-xs text-text-muted">
-                {p.factors.length} factor{p.factors.length !== 1 ? "s" : ""}
               </span>
             )}
           </div>
@@ -150,10 +179,71 @@ function DepartmentCard({
             </div>
           )}
 
+          {toolCalls.length > 0 && (
+            <div>
+              <h5 className="text-[10px] font-semibold text-text-muted uppercase tracking-wider mb-1 flex items-center gap-1">
+                <Wrench size={10} />
+                Tools Used ({toolCalls.length})
+              </h5>
+              <div className="space-y-1">
+                {toolCalls.map((tc) => {
+                  const toolName = (tc.payload as Record<string, unknown>)?.tool as string;
+                  const args = (tc.payload as Record<string, unknown>)?.arguments as Record<string, unknown>;
+                  return (
+                    <div key={tc.id} className="flex items-start gap-1.5 text-xs text-text-secondary bg-surface-4/50 p-1.5 rounded">
+                      <code className="text-[10px] text-brand-400 shrink-0 font-mono">
+                        {toolName || "unknown"}
+                      </code>
+                      {args && (
+                        <span className="text-text-muted truncate font-mono text-[10px]">
+                          {JSON.stringify(args).slice(0, 80)}
+                        </span>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {challengesReceived.length > 0 && (
+            <div>
+              <h5 className="text-[10px] font-semibold text-amber-400 uppercase tracking-wider mb-1 flex items-center gap-1">
+                <MessageSquare size={10} />
+                Challenges Received ({challengesReceived.length})
+              </h5>
+              <ul className="space-y-0.5">
+                {challengesReceived.map((ch) => (
+                  <li key={ch.id} className="text-xs text-amber-300/80 flex items-start gap-1.5">
+                    <span className="shrink-0">from <strong>{ch.actor.replace(/_/g, " ")}</strong>:</span>
+                    <span>{(ch.payload as Record<string, unknown>)?.statement as string}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {challengesIssued.length > 0 && (
+            <div>
+              <h5 className="text-[10px] font-semibold text-text-muted uppercase tracking-wider mb-1 flex items-center gap-1">
+                <Scale size={10} />
+                Challenges Issued ({challengesIssued.length})
+              </h5>
+              <ul className="space-y-0.5">
+                {challengesIssued.map((ch) => (
+                  <li key={ch.id} className="text-xs text-text-secondary flex items-start gap-1.5">
+                    <span className="shrink-0">to <strong>{(ch.payload as Record<string, unknown>)?.target_agent as string}</strong>:</span>
+                    <span>{(ch.payload as Record<string, unknown>)?.statement as string}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
           {p.risks && p.risks.length > 0 && (
             <div>
               <h5 className="text-[10px] font-semibold text-text-muted uppercase tracking-wider mb-1">
-                Risks
+                Risks Identified
               </h5>
               <ul className="space-y-0.5">
                 {p.risks.map((risk, i) => (
@@ -179,6 +269,29 @@ function DepartmentCard({
                   </li>
                 ))}
               </ul>
+            </div>
+          )}
+
+          {consensusEvents.length > 0 && (
+            <div>
+              <h5 className="text-[10px] font-semibold text-text-muted uppercase tracking-wider mb-1 flex items-center gap-1">
+                <BookOpen size={10} />
+                Consensus Context
+              </h5>
+              <div className="text-xs text-text-secondary space-y-0.5">
+                {consensusEvents.map((ce) => {
+                  const dims = (ce.payload as Record<string, unknown>)?.dimension_scores as Record<string, number>;
+                  return dims ? (
+                    <div key={ce.id} className="flex flex-wrap gap-2">
+                      {Object.entries(dims).map(([dim, score]) => (
+                        <span key={dim} className="text-[10px] bg-surface-4 px-1.5 py-0.5 rounded">
+                          {dim.replace(/_/g, " ")}: {(score * 100).toFixed(0)}%
+                        </span>
+                      ))}
+                    </div>
+                  ) : null;
+                })}
+              </div>
             </div>
           )}
         </div>

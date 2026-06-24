@@ -49,6 +49,7 @@ departments:
     tools:
       - pricing_engine
       - policy_engine
+      - payment_service
 
   - id: compliance
     role: Compliance
@@ -80,6 +81,19 @@ departments:
       - Maintain organizational confidence above 65%
     tools:
       - policy_engine
+
+dimension_mappings:
+  customer_success:
+    - customer_readiness
+    - operational_capacity
+  sales:
+    - customer_readiness
+  finance:
+    - financial_viability
+    - risk_assessment
+  compliance:
+    - compliance_clearance
+    - risk_assessment
 
 decision_dimensions:
   - customer_readiness

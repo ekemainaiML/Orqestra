@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+from collections.abc import Awaitable, Callable
 from typing import Any
 
 from pydantic import BaseModel, Field
@@ -76,6 +77,19 @@ class BaseAgent(ABC):
     def get_qwen_tools(self) -> list[dict[str, Any]]:
         tool_names = get_tool_names_for_agent(self.tools)
         return get_tool_definitions(tool_names)
+
+    def _make_tool_callback(
+        self, context: AgentContext
+    ) -> Callable[[str, dict[str, Any], Any], Awaitable[None]]:
+        async def _on_call(fn_name: str, fn_args: dict[str, Any], result: Any) -> None:
+            from app.events.publisher import publish_event
+            await publish_event(
+                case_id=context.case_id,
+                event_type="tool_call_executed",
+                actor=self.role,
+                payload={"tool": fn_name, "arguments": fn_args, "result": result},
+            )
+        return _on_call
 
     @abstractmethod
     async def assess(self, context: AgentContext) -> AgentRecommendation:

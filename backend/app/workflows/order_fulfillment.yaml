@@ -62,6 +62,7 @@ departments:
     tools:
       - pricing_engine
       - policy_engine
+      - payment_service
 
   - id: logistics
     role: Logistics
@@ -71,12 +72,14 @@ departments:
       - Assess shipping routes and costs
       - Identify delivery risks (customs, distance, weather)
       - Recommend optimal shipping strategy
+      - Check inventory reorder thresholds and budget availability
     policies:
       - "Government orders: factor 3-5 days for customs clearance"
       - International shipping requires minimum 7-day lead time
       - Regional delivery within 3 days available for Africa-based suppliers
     tools:
-      - supplier_db
+      - logistics_service
+      - erp_service
 
   - id: operations_manager
     role: Operations Manager

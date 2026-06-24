@@ -29,9 +29,11 @@ class AuthMiddleware(BaseHTTPMiddleware):
             return JSONResponse(status_code=401, content={"detail": "Missing or invalid Authorization header"})
 
         token = auth_header[7:]
-        username = verify_token(token)
-        if username is None:
+        result = verify_token(token)
+        if result is None:
             return JSONResponse(status_code=401, content={"detail": "Invalid or expired token"})
 
+        username, tenant_id_str = result
         request.state.username = username
+        request.state.tenant_id = tenant_id_str
         return await call_next(request)

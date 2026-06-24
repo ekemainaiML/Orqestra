@@ -7,10 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.business_tools.inventory_service import check_availability, get_product_specs
-from app.business_tools.policy_engine import check_policy, get_all_policies
-from app.business_tools.pricing_engine import calculate_price
-from app.business_tools.supplier_db import find_suppliers
+from app.business_tools import tool_registry
 from app.memory.memory_service import MemoryService
 from app.models.benchmark_run import BenchmarkRun
 from app.models.case import Case
@@ -53,16 +50,16 @@ async def _run_tool_analysis(parsed: dict[str, Any]) -> dict[str, Any]:
     quantity = parsed["quantity"]
     is_gov = parsed["is_government"]
 
-    inventory = await check_availability(product, quantity)
-    specs = await get_product_specs(product)
-    pricing = await calculate_price(quantity, is_preferred=is_gov, is_government=is_gov)
-    suppliers = await find_suppliers()
-    policies = await get_all_policies()
+    inventory = await tool_registry["check_availability"](product=product, quantity=quantity)
+    specs = await tool_registry["get_product_specs"](product=product)
+    pricing = await tool_registry["calculate_price"](quantity=quantity, is_preferred=is_gov, is_government=is_gov)
+    suppliers = await tool_registry["find_suppliers"]()
+    policies = await tool_registry["get_all_policies"]()
 
     policy_results = {}
     for p in policies:
         ctx = {"margin_pct": pricing["estimated_margin_pct"], "is_new_client": not is_gov}
-        policy_results[p["id"]] = await check_policy(p["id"], ctx)
+        policy_results[p["id"]] = await tool_registry["check_policy"](policy_id=p["id"], context=ctx)
 
     return {
         "inventory": inventory,

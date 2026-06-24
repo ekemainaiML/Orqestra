@@ -62,8 +62,10 @@ async def run_independent_assessment(
                 tool_outputs={},
                 directives=directives or [],
             )
-            recommendation = await agent.assess(context)
+            recommendation = await asyncio.wait_for(agent.assess(context), timeout=120.0)
             return agent.role.lower().replace(" ", "_"), recommendation, None
+        except TimeoutError:
+            return agent.role.lower().replace(" ", "_"), None, "Assessment timed out after 120s"
         except Exception as e:
             return agent.role.lower().replace(" ", "_"), None, str(e)
 

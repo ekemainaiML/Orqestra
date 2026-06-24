@@ -5,10 +5,11 @@ from sqlalchemy import DateTime, Enum, Float, ForeignKey, Integer, func
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
+from app.models.mixins import TenantMixin
 from app.services.database import Base
 
 
-class BenchmarkRun(Base):
+class BenchmarkRun(TenantMixin, Base):
     __tablename__ = "benchmark_runs"
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)

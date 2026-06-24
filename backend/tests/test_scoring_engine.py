@@ -1,6 +1,6 @@
 from app.deliberation.scoring_engine import (
-    AGENT_EXPERTISE,
-    SCORE_DIMENSIONS,
+    DEFAULT_EXPERTISE,
+    DEFAULT_DIMENSIONS,
     _score_from_recommendation,
     _estimate_risk_count,
     calculate_scores,
@@ -99,14 +99,14 @@ class TestCalculateScores:
 
     def test_all_dimensions_scored(self, sample_recommendations):
         result = calculate_scores(sample_recommendations)
-        for dim in SCORE_DIMENSIONS:
+        for dim in DEFAULT_DIMENSIONS:
             assert dim in result["dimension_scores"]
             assert 0.0 <= result["dimension_scores"][dim] <= 1.0
 
     def test_agents_only_score_their_expertise_domains(self, sample_recommendations):
         result = calculate_scores(sample_recommendations)
         for agent_id, dims in result["agent_scores"].items():
-            expected_dims = AGENT_EXPERTISE.get(agent_id, [])
+            expected_dims = DEFAULT_EXPERTISE.get(agent_id, [])
             for dim in dims:
                 assert dim in expected_dims, f"Agent {agent_id} scored dimension {dim} outside expertise"
 

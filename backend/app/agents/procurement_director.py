@@ -31,5 +31,6 @@ class ProcurementDirectorAgent(BaseAgent):
             tools=self.get_qwen_tools(),
             response_model=AgentRecommendation,
             model=self.get_model(context),
+            on_tool_call=self._make_tool_callback(context),
         )
         return AgentRecommendation.model_validate(raw)

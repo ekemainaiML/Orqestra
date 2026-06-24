@@ -35,6 +35,7 @@ class WorkflowConfig(BaseModel):
     description: str = ""
     departments: list[DepartmentConfig]
     decision_dimensions: list[str] = []
+    dimension_mappings: dict[str, list[str]] = {}
     governance: GovernanceConfig = GovernanceConfig()
     policies: list[PolicyConfig] = []
     approval: ApprovalConfig = ApprovalConfig()

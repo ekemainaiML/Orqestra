@@ -1,20 +1,18 @@
 "use client";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { api } from "@/lib/api";
-import { Loader2, Send, ArrowLeft } from "lucide-react";
+import { Loader2, Send, ArrowLeft, Search } from "lucide-react";
 import Link from "next/link";
-import type { WorkflowSummary } from "@/lib/types";
+import type { WorkflowSummary, CustomerSearchResult } from "@/lib/types";
 
-const CUSTOMER_OPTIONS = [
-  { id: "a1b2c3d4-0001-4000-8000-000000000001", name: "Sarah Mitchell — Greenfield Municipal Council" },
-  { id: "a1b2c3d4-0001-4000-8000-000000000002", name: "James Okafor — NovaTech Solutions" },
-  { id: "a1b2c3d4-0001-4000-8000-000000000003", name: "Chioma Adeyemi — RenPower Africa" },
-  { id: "a1b2c3d4-0001-4000-8000-000000000004", name: "David Chen — Sunlight Initiative" },
-];
+const DEBOUNCE_MS = 300;
 
 export default function NewCasePage() {
-  const [customerId, setCustomerId] = useState("");
+  const [customerSearch, setCustomerSearch] = useState("");
+  const [customerResults, setCustomerResults] = useState<CustomerSearchResult[]>([]);
+  const [selectedCustomer, setSelectedCustomer] = useState<CustomerSearchResult | null>(null);
+  const [searching, setSearching] = useState(false);
   const [workflowType, setWorkflowType] = useState("");
   const [requestText, setRequestText] = useState("");
   const [workflows, setWorkflows] = useState<WorkflowSummary[]>([]);
@@ -30,13 +28,47 @@ export default function NewCasePage() {
     }).catch(() => {}).finally(() => setLoadingWorkflows(false));
   }, []);
 
+  const searchRef = useRef("");
+
+  useEffect(() => {
+    if (selectedCustomer) return;
+    searchRef.current = customerSearch;
+    if (!customerSearch.trim()) return;
+    const timer = setTimeout(async () => {
+      setSearching(true);
+      try {
+        const r = await api.cases.customers.search(customerSearch);
+        if (searchRef.current === customerSearch) {
+          setCustomerResults(r.customers);
+        }
+      } catch {
+        if (searchRef.current === customerSearch) {
+          setCustomerResults([]);
+        }
+      } finally {
+        if (searchRef.current === customerSearch) {
+          setSearching(false);
+        }
+      }
+    }, DEBOUNCE_MS);
+    return () => clearTimeout(timer);
+  }, [customerSearch, selectedCustomer]);
+
+  const handleSearchChange = useCallback((value: string) => {
+    setCustomerSearch(value);
+    if (!value.trim()) {
+      setCustomerResults([]);
+    }
+  }, []);
+
   const handleSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!selectedCustomer) return;
     setError("");
     setLoading(true);
     try {
       const result = await api.cases.create({
-        customer_id: customerId,
+        customer_id: selectedCustomer.id,
         request_text: requestText,
         workflow_type: workflowType,
       });
@@ -47,11 +79,8 @@ export default function NewCasePage() {
       );
       setLoading(false);
     }
-  }, [customerId, requestText, workflowType, router]);
+  }, [selectedCustomer, requestText, workflowType, router]);
 
-  const selectedCustomer = CUSTOMER_OPTIONS.find(
-    (c) => c.id === customerId
-  );
   const selectedWorkflow = workflows.find(
     (w) => w.id === workflowType
   );
@@ -76,43 +105,57 @@ export default function NewCasePage() {
 
       <form onSubmit={handleSubmit} className="space-y-5">
         <div>
-          <label htmlFor="customer" className="label">
+          <label htmlFor="customer-search" className="label">
             Customer
           </label>
-          <div className="relative">
-            <select
-              id="customer"
-              value={customerId}
-              onChange={(e) => setCustomerId(e.target.value)}
-              className="input appearance-none cursor-pointer"
-              required
-            >
-              <option value="" disabled>
-                Select a customer...
-              </option>
-              {CUSTOMER_OPTIONS.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
-            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3 text-text-muted">
-              <svg
-                width="16"
-                height="16"
-                viewBox="0 0 16 16"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
+          {selectedCustomer ? (
+            <div className="flex items-center justify-between input py-2.5">
+              <div>
+                <span className="text-text-primary font-medium">{selectedCustomer.name}</span>
+                <span className="text-text-muted text-xs ml-2">{selectedCustomer.company}</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => { setSelectedCustomer(null); setCustomerSearch(""); }}
+                className="text-xs text-brand-400 hover:text-brand-300"
               >
-                <path d="M4 6l4 4 4-4" />
-              </svg>
+                Change
+              </button>
             </div>
-          </div>
-          {selectedCustomer && (
-            <p className="text-xs text-text-muted mt-1.5">
-              ID: {selectedCustomer.id}
-            </p>
+          ) : (
+            <div className="relative">
+              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" />
+              <input
+                id="customer-search"
+                type="text"
+                value={customerSearch}
+                onChange={(e) => handleSearchChange(e.target.value)}
+                className="input pl-9"
+                placeholder="Search by name, email, or company..."
+                autoComplete="off"
+              />
+              {searching && (
+                <Loader2 size={14} className="absolute right-3 top-1/2 -translate-y-1/2 animate-spin text-text-muted" />
+              )}
+              {customerResults.length > 0 && (
+                <div className="absolute z-10 mt-1 w-full rounded-lg border shadow-xl overflow-hidden bg-[var(--color-surface-4)] border-[var(--color-border)]">
+                  {customerResults.map((c) => (
+                    <button
+                      key={c.id}
+                      type="button"
+                      onClick={() => setSelectedCustomer(c)}
+                      className="w-full text-left px-3 py-2.5 border-b last:border-0 hover:bg-[var(--color-surface-3)] transition-colors border-[var(--color-border)]"
+                    >
+                      <div className="text-sm text-text-primary font-medium">{c.name}</div>
+                      <div className="text-xs text-text-muted">{c.email} {c.company ? `· ${c.company}` : ""}</div>
+                    </button>
+                  ))}
+                </div>
+              )}
+              {!searching && customerSearch && customerResults.length === 0 && (
+                <p className="text-xs text-text-muted mt-1.5">No customers found for &ldquo;{customerSearch}&rdquo;</p>
+              )}
+            </div>
           )}
         </div>
 
@@ -179,7 +222,7 @@ export default function NewCasePage() {
         <div className="flex items-center gap-3 pt-2">
           <button
             type="submit"
-            disabled={loading || !customerId || !requestText.trim()}
+            disabled={loading || !selectedCustomer || !requestText.trim()}
             className="btn-primary flex items-center gap-2"
           >
             {loading ? (
