@@ -6,8 +6,11 @@ from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 
 from app.deliberation.state_machine import StateMachineError
+from app.services.settings import settings
 
 logger = logging.getLogger("orqestra")
+
+_IN_PRODUCTION = settings.environment == "production"
 
 
 class ErrorHandlerMiddleware(BaseHTTPMiddleware):
@@ -18,10 +21,10 @@ class ErrorHandlerMiddleware(BaseHTTPMiddleware):
         except StateMachineError as e:
             logger.warning("State machine error: %s", str(e))
             return JSONResponse(
-                status_code=400,
+                status_code=409,
                 content={
                     "error": "state_machine_error",
-                    "detail": str(e),
+                    "detail": str(e) if not _IN_PRODUCTION else "Invalid state transition",
                     "code": "INVALID_TRANSITION",
                 },
             )
@@ -31,8 +34,38 @@ class ErrorHandlerMiddleware(BaseHTTPMiddleware):
                 status_code=422,
                 content={
                     "error": "validation_error",
-                    "detail": str(e),
+                    "detail": str(e) if not _IN_PRODUCTION else "Invalid input",
                     "code": "INVALID_INPUT",
+                },
+            )
+        except PermissionError as e:
+            logger.warning("Authorization error: %s", str(e))
+            return JSONResponse(
+                status_code=403,
+                content={
+                    "error": "forbidden",
+                    "detail": "You do not have permission to perform this action",
+                    "code": "FORBIDDEN",
+                },
+            )
+        except LookupError as e:
+            logger.warning("Not found: %s", str(e))
+            return JSONResponse(
+                status_code=404,
+                content={
+                    "error": "not_found",
+                    "detail": str(e) if not _IN_PRODUCTION else "Resource not found",
+                    "code": "NOT_FOUND",
+                },
+            )
+        except TimeoutError as e:
+            logger.warning("Timeout: %s", str(e))
+            return JSONResponse(
+                status_code=504,
+                content={
+                    "error": "timeout",
+                    "detail": "Request timed out",
+                    "code": "TIMEOUT",
                 },
             )
         except Exception as e:
@@ -41,8 +74,8 @@ class ErrorHandlerMiddleware(BaseHTTPMiddleware):
                 status_code=500,
                 content={
                     "error": "internal_error",
-                    "detail": "An unexpected error occurred" if "production" else str(e),
+                    "detail": "An unexpected error occurred" if _IN_PRODUCTION else str(e),
                     "code": "INTERNAL_ERROR",
-                    "traceback": traceback.format_exc() if __debug__ else None,
+                    "traceback": traceback.format_exc() if not _IN_PRODUCTION else None,
                 },
             )

@@ -9,12 +9,12 @@ Orqestra is an AI-powered platform where specialized agents — Sales, Finance, 
 ## Overview
 
 | Department | Agent | Model | Role |
-|---|---|---|---|
-| Sales | Sales Agent | qwen3.7-plus | Interpret customer intent, generate quotations |
-| Finance | Finance Agent | qwen3.7-plus | Evaluate profitability, financial risk, policy compliance |
-| Inventory | Inventory Agent | qwen3.7-plus | Check stock availability, assess make-vs-buy |
-| Procurement | Procurement Agent | qwen3.7-plus | Identify suppliers, evaluate sourcing options |
-| Logistics | Logistics Agent | qwen3.7-plus | Validate delivery feasibility, shipping risk |
+|---|---|---|---|---|
+| Sales | Sales Agent | qwen3.6-flash | Interpret customer intent, generate quotations |
+| Finance | Finance Agent | qwen3.6-flash | Evaluate profitability, financial risk, policy compliance |
+| Inventory | Inventory Agent | qwen3.6-flash | Check stock availability, assess make-vs-buy |
+| Procurement | Procurement Agent | qwen3.6-flash | Identify suppliers, evaluate sourcing options |
+| Logistics | Logistics Agent | qwen3.6-flash | Validate delivery feasibility, shipping risk |
 | Executive | Operations Manager | qwen-max | Synthesize inputs, adjudicate conflicts, final decision |
 
 **Demo workflow:** Customer orders 500 solar-powered street lights with 14-day delivery. Agents deliberate, the Operations Manager adjudicates, and a human operator approves, rejects, or modifies the decision.
@@ -60,7 +60,7 @@ Orqestra is an AI-powered platform where specialized agents — Sales, Finance, 
 
 **Core pipeline:** Customer Request → Memory Retrieval → Independent Assessment (5 agents in parallel) → Challenge Round → Consensus Scoring → Adjudication (Ops Manager) → Approval Pending → Human Decision
 
-**Deliberation quality metrics:** 168 automated tests, structured monitoring with request-level metrics, DB health checks, and duration tracking built in.
+**Deliberation quality metrics:** 209 automated tests (unit + integration + E2E), structured monitoring with request-level metrics, DB health checks, and duration tracking built in.
 
 ---
 
@@ -115,7 +115,7 @@ npm run dev
 | `DATABASE_URL` | Yes | `postgresql+asyncpg://postgres:postgres@localhost:5432/orqestra` | PostgreSQL connection string |
 | `REDIS_URL` | Yes | `redis://localhost:6379/0` | Redis connection string |
 | `DASHSCOPE_API_KEY` | Yes | — | Alibaba Cloud Qwen API key (get from [DashScope Console](https://dashscope.console.aliyun.com/)) |
-| `QWEN_MODEL_OPERATIONAL` | No | `qwen3.7-plus` | Model for operational agents |
+| `QWEN_MODEL_OPERATIONAL` | No | `qwen3.6-flash` | Model for operational agents |
 | `QWEN_MODEL_EXECUTIVE` | No | `qwen-max` | Model for the Operations Manager agent |
 | `CORS_ORIGINS` | No | — | Comma-separated additional CORS origins for production |
 | `FRONTEND_PUBLIC_URL` | No | `http://localhost:8000` | Public backend URL sent to browser (Docker build arg) |
@@ -165,8 +165,20 @@ Every event — from case creation through deliberation, governance actions, and
 ### Governance Replay
 Step through the deliberation process with animated playback. Watch each agent's assessment, the challenge round, scoring, and adjudication unfold.
 
+### Audit & Explainability (Decision Cards)
+Every agent's assessment includes a clickable Decision Card showing reasoning, confidence, risks, factors, tools used, challenges issued/received, and consensus context. All data is derived from the immutable event store.
+
+### Organization Health Dashboard
+8 KPI cards (Cases Today, Completed, Pending Approval, Escalated, Approval Rate, Escalation Rate, Avg Confidence, Avg Deliberation Time) plus per-department performance bars with confidence scores.
+
+### Clarification Flow
+When a request is too vague (completeness < 0.70), the system identifies missing fields (amount, timeline, quantity, location, etc.), generates targeted questions, and enters a `clarification_required` state. Human answers resume deliberation.
+
+### Failure Recovery Policy Engine
+A `PolicyEngine` checks completeness/confidence thresholds, critical department status, and non-critical tolerances. Returns `can_continue`/`degraded_mode` status. Integrated into the case detail page as a Health Check button.
+
 ### Real-Time Updates
-Server-Sent Events (SSE) push live updates from the backend to the frontend as deliberation progresses.
+Server-Sent Events (SSE) push live updates from the backend to the frontend as deliberation progresses. The workflow graph derives live status from events during a run.
 
 ### Monitoring & Observability
 A lightweight in-process metrics collector tracks request counts, error rates, status code distributions, and average response duration. Exposed via `GET /metrics`. The `GET /health` endpoint verifies database connectivity. All access logs include `duration_ms` for endpoint-level performance monitoring.
@@ -185,8 +197,13 @@ A lightweight in-process metrics collector tracks request counts, error rates, s
 | POST | `/cases/{id}/approve` | — | Approve the decision |
 | POST | `/cases/{id}/reject` | — | Reject with feedback |
 | POST | `/cases/{id}/modify` | — | Inject a strategic directive |
+| POST | `/cases/{id}/clarify` | — | Check if request needs clarification, generate questions |
+| POST | `/cases/{id}/clarify/respond` | — | Submit answers to clarification questions |
+| GET | `/cases/{id}/recovery-check` | — | Policy engine health check for a case |
 | GET | `/cases/{id}/replay` | — | Replay data for a case |
 | GET | `/cases/{id}/brief` | — | Decision brief summary |
+| GET | `/cases/{id}/tool-results` | — | Structured tool call results grouped by tool |
+| GET | `/cases/customers/search` | `q` | Search customers by name, email, or company |
 
 ### Demo, Benchmark, Dashboard, Events, Monitoring
 | Method | Route | Description |
@@ -195,7 +212,7 @@ A lightweight in-process metrics collector tracks request counts, error rates, s
 | POST | `/demo/launch/{scenario}` | Launch a demo scenario |
 | GET | `/benchmark/{id}` | Get benchmark results |
 | POST | `/benchmark/{id}/run` | Run benchmark comparison |
-| GET | `/dashboard/metrics` | Aggregate KPIs |
+| GET | `/dashboard/metrics` | Aggregate KPIs (cases today, approval rate, escalation rate, avg deliberation time, department performance, etc.) |
 | GET | `/events/stream` | SSE live event stream |
 | GET | `/health` | Health check (includes DB connectivity) |
 | GET | `/metrics` | In-memory request/error metrics |
@@ -216,7 +233,7 @@ A lightweight in-process metrics collector tracks request counts, error rates, s
 | ORM | SQLAlchemy 2.0 (async) |
 | Migrations | Alembic |
 | Containerization | Docker, Docker Compose |
-| Testing | pytest, pytest-asyncio (168 tests) |
+| Testing | pytest, pytest-asyncio (209 tests) |
 
 ---
 
@@ -228,7 +245,7 @@ A lightweight in-process metrics collector tracks request counts, error rates, s
 │   │   ├── api/              # REST endpoints (cases, demo, events, benchmark, dashboard)
 │   │   ├── agents/           # AI agent definitions (sales, finance, inventory, etc.)
 │   │   ├── deliberation/     # State machine, scoring, adjudication, challenge validation
-│   │   ├── governance/       # Brief generation, approval handling, iteration management
+│   │   ├── governance/       # Brief generation, approval handling, iteration management, clarification engine, recovery policy
 │   │   ├── memory/           # 3-tier memory store, retrieval, promotion
 │   │   ├── events/           # Append-only event store, Redis Pub/Sub, SSE
 │   │   ├── business_tools/   # Simulated services (pricing, inventory, suppliers, policies)

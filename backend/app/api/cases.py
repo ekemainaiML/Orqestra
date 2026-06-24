@@ -524,6 +524,7 @@ async def analyze_clarity(case_id: str, session: AsyncSession = Depends(get_sess
             "status": "clarification_required",
             "case_id": case_id,
             "completeness": completeness["completeness"],
+            "needs_clarification": True,
             **clarification,
         }
 
