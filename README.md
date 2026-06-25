@@ -60,7 +60,7 @@ Orqestra is an AI-powered platform where specialized agents — Sales, Finance, 
 
 **Core pipeline:** Customer Request → Memory Retrieval → Independent Assessment (5 agents in parallel) → Challenge Round → Consensus Scoring → Adjudication (Ops Manager) → Approval Pending → Human Decision
 
-**Deliberation quality metrics:** 209 automated tests (unit + integration + E2E), structured monitoring with request-level metrics, DB health checks, and duration tracking built in.
+**Deliberation quality metrics:** 215 automated tests (unit + integration + E2E), structured monitoring with request-level metrics, DB health checks, and duration tracking built in.
 
 ---
 
@@ -180,6 +180,18 @@ A `PolicyEngine` checks completeness/confidence thresholds, critical department 
 ### Real-Time Updates
 Server-Sent Events (SSE) push live updates from the backend to the frontend as deliberation progresses. The workflow graph derives live status from events during a run.
 
+### Integration Health Dashboard
+A `GET /health/integrations` endpoint reports the configured status of every integration (HubSpot, Odoo, Paystack, DHL, Qwen, Slack, SMTP). Each shows `configured` (bool) and `status` ("connected" or "not_configured"). The frontend `/admin/integrations` page renders status cards with green/amber indicators.
+
+### Notification Management
+SMTP and Slack notification channels are configurable via `GET /auth/settings/notifications` and `PUT /auth/settings/notifications`. Passwords and webhook URLs are masked in responses (`"********"`) and preserved when masked values are sent back. The notifier is reset on update so new settings take effect immediately.
+
+### Multi-Tenancy Admin UI
+The `/admin/tenants` page provides CRUD management for tenants (create, edit, delete with name/slug). The "default" tenant is protected from deletion. Slug-based routing is enforced server-side via contextvars + SQLAlchemy `do_orm_execute`.
+
+### Analytics & Trends
+`GET /dashboard/trends?days=N` (1–90) returns daily aggregates (cases_created, cases_completed, avg_confidence). The frontend renders a 14-day bar chart on the dashboard page.
+
 ### Monitoring & Observability
 A lightweight in-process metrics collector tracks request counts, error rates, status code distributions, and average response duration. Exposed via `GET /metrics`. The `GET /health` endpoint verifies database connectivity. All access logs include `duration_ms` for endpoint-level performance monitoring.
 
@@ -213,9 +225,15 @@ A lightweight in-process metrics collector tracks request counts, error rates, s
 | GET | `/benchmark/{id}` | Get benchmark results |
 | POST | `/benchmark/{id}/run` | Run benchmark comparison |
 | GET | `/dashboard/metrics` | Aggregate KPIs (cases today, approval rate, escalation rate, avg deliberation time, department performance, etc.) |
-| GET | `/events/stream` | SSE live event stream |
-| GET | `/health` | Health check (includes DB connectivity) |
-| GET | `/metrics` | In-memory request/error metrics |
+| GET | `/dashboard/trends` | `days` | Daily aggregates for last N days (1–90) |
+| GET | `/health/integrations` | — | Configuration status for all 7 integrations |
+| GET | `/auth/settings/notifications` | — | Current SMTP/Slack settings (secrets masked) |
+| PUT | `/auth/settings/notifications` | — | Update SMTP/Slack settings, resets notifier |
+| PUT | `/auth/tenants/{id}` | — | Update a tenant's name/slug |
+| DELETE | `/auth/tenants/{id}` | — | Delete a tenant (protects "default") |
+| GET | `/events/stream` | — | SSE live event stream |
+| GET | `/health` | — | Health check (includes DB connectivity) |
+| GET | `/metrics` | — | In-memory request/error metrics |
 
 ---
 
@@ -233,7 +251,7 @@ A lightweight in-process metrics collector tracks request counts, error rates, s
 | ORM | SQLAlchemy 2.0 (async) |
 | Migrations | Alembic |
 | Containerization | Docker, Docker Compose |
-| Testing | pytest, pytest-asyncio (209 tests) |
+| Testing | pytest, pytest-asyncio (215 tests) |
 
 ---
 
@@ -257,7 +275,7 @@ A lightweight in-process metrics collector tracks request counts, error rates, s
 │   └── tests/
 ├── frontend/
 │   ├── src/
-│   │   ├── app/              # Next.js pages (dashboard, demo, cases/*, etc.)
+│   │   ├── app/              # Next.js pages (dashboard, demo, cases/*, admin/*)
 │   │   ├── components/       # Shared UI components (Sidebar, Header, MetricCard, etc.)
 │   │   ├── hooks/            # Custom React hooks (dashboard metrics, SSE events)
 │   │   └── lib/              # API client, types, SSE helper

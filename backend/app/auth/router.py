@@ -5,7 +5,7 @@ import time
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -90,6 +90,24 @@ class CreateTenantRequest(BaseModel):
     name: str
     slug: str
 
+    @field_validator("name")
+    @classmethod
+    def validate_name(cls, v: str) -> str:
+        stripped = v.strip()
+        if len(stripped) < 1:
+            raise ValueError("Name must not be empty")
+        return stripped
+
+    @field_validator("slug")
+    @classmethod
+    def validate_slug(cls, v: str) -> str:
+        stripped = v.strip().lower().replace(" ", "-")
+        if len(stripped) < 1:
+            raise ValueError("Slug must not be empty")
+        if not all(c.isalnum() or c == "-" for c in stripped):
+            raise ValueError("Slug must contain only letters, numbers, and hyphens")
+        return stripped
+
 
 class TenantResponse(BaseModel):
     id: str
@@ -154,11 +172,10 @@ async def login(req: LoginRequest, session: AsyncSession = Depends(get_session))
 
 @router.post("/tenants", response_model=TenantResponse)
 async def create_tenant(req: CreateTenantRequest, session: AsyncSession = Depends(get_session)):
-    slug = req.slug.strip().lower().replace(" ", "-")
-    existing = await session.scalar(select(Tenant).where(Tenant.slug == slug))
+    existing = await session.scalar(select(Tenant).where(Tenant.slug == req.slug))
     if existing:
         raise HTTPException(status_code=409, detail="Tenant slug already exists")
-    tenant = Tenant(name=req.name.strip(), slug=slug)
+    tenant = Tenant(name=req.name, slug=req.slug)
     session.add(tenant)
     await session.commit()
     return TenantResponse(
@@ -193,13 +210,12 @@ async def update_tenant(tenant_id: str, req: CreateTenantRequest, session: Async
     tenant = await session.get(Tenant, uid)
     if not tenant:
         raise HTTPException(status_code=404, detail="Tenant not found")
-    slug = req.slug.strip().lower().replace(" ", "-")
-    if slug != tenant.slug:
-        existing = await session.scalar(select(Tenant).where(Tenant.slug == slug).where(Tenant.id != uid))
+    if req.slug != tenant.slug:
+        existing = await session.scalar(select(Tenant).where(Tenant.slug == req.slug).where(Tenant.id != uid))
         if existing:
             raise HTTPException(status_code=409, detail="Tenant slug already exists")
-    tenant.name = req.name.strip()
-    tenant.slug = slug
+    tenant.name = req.name
+    tenant.slug = req.slug
     await session.commit()
     await session.refresh(tenant)
     return TenantResponse(
@@ -231,6 +247,20 @@ class NotificationSettings(BaseModel):
     smtp_password: str = ""
     smtp_from: str = "noreply@orqestra.ai"
     slack_webhook_url: str = ""
+
+    @field_validator("smtp_port")
+    @classmethod
+    def validate_port(cls, v: int) -> int:
+        if v < 1 or v > 65535:
+            raise ValueError("SMTP port must be between 1 and 65535")
+        return v
+
+    @field_validator("slack_webhook_url")
+    @classmethod
+    def validate_slack_url(cls, v: str) -> str:
+        if v and v not in ("", "********") and not v.startswith("https://"):
+            raise ValueError("Slack webhook URL must use HTTPS")
+        return v
 
 
 @router.get("/settings/notifications")

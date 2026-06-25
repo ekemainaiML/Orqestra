@@ -8,6 +8,9 @@ import {
   ChefHat,
   ShieldCheck,
   Settings2,
+  Puzzle,
+  Bell,
+  Building2,
 } from "lucide-react";
 import { ThemeToggle } from "@/components/ThemeToggle";
 
@@ -70,6 +73,9 @@ export function Sidebar() {
         {[
           { href: "/admin/workflows", label: "Workflows", icon: Settings2 },
           { href: "/admin/workflows/validate", label: "Validate Workflow", icon: ShieldCheck },
+          { href: "/admin/integrations", label: "Integrations", icon: Puzzle },
+          { href: "/admin/notifications", label: "Notifications", icon: Bell },
+          { href: "/admin/tenants", label: "Tenants", icon: Building2 },
         ].map(({ href, label, icon: Icon }) => {
           const isActive = pathname.startsWith(href);
           return (

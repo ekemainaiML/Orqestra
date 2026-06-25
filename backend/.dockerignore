@@ -1,13 +1,6 @@
+.venv
 __pycache__
 *.pyc
-*.pyo
 .git
-*.md
 .env
-venv
-.venv
 *.egg-info
-.pytest_cache
-alembic/versions
-tests
-# seed — needed at runtime for seed/load.py and demo_cases endpoint

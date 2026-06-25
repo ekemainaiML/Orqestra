@@ -214,3 +214,171 @@ async def test_tool_results_endpoint(client: AsyncClient, seed_customers):
     assert body["case_id"] == case_id
     assert "tools" in body
     assert "tool_count" in body
+
+
+@pytest.mark.asyncio
+async def test_dashboard_trends(client: AsyncClient, seed_customers):
+    qwen_mod.qwen.assess_with_tools = AsyncMock(return_value=SAMPLE_RECOMMENDATION)
+
+    resp = await client.get("/dashboard/trends?days=7")
+    assert resp.status_code == 200
+    body = resp.json()
+    assert isinstance(body, list)
+    assert len(body) <= 7
+    if len(body) > 0:
+        assert "date" in body[0]
+        assert "cases_created" in body[0]
+        assert "cases_completed" in body[0]
+        assert "avg_confidence" in body[0]
+
+    resp = await client.get("/dashboard/trends")
+    assert resp.status_code == 200
+    assert len(resp.json()) <= 30
+
+
+@pytest.mark.asyncio
+async def test_health_integrations(client: AsyncClient):
+    resp = await client.get("/health/integrations")
+    assert resp.status_code == 200
+    body = resp.json()
+    assert "hubspot" in body
+    assert "odoo" in body
+    assert "paystack" in body
+    assert "dhl" in body
+    assert "qwen" in body
+    assert "slack" in body
+    assert "smtp" in body
+    for key, val in body.items():
+        assert "configured" in val
+        assert "status" in val
+        assert val["status"] in ("connected", "not_configured")
+
+
+@pytest.mark.asyncio
+async def test_notification_settings_get(client: AsyncClient):
+    resp = await client.get("/auth/settings/notifications")
+    assert resp.status_code == 200
+    body = resp.json()
+    assert "smtp_host" in body
+    assert "smtp_port" in body
+    assert "smtp_username" in body
+    assert "smtp_password" in body
+    assert "smtp_from" in body
+    assert "slack_webhook_url" in body
+
+
+@pytest.mark.asyncio
+async def test_notification_settings_update(client: AsyncClient):
+    resp = await client.put("/auth/settings/notifications", json={
+        "smtp_host": "smtp.test.com",
+        "smtp_port": 587,
+        "smtp_username": "user@test.com",
+        "smtp_password": "secret123",
+        "smtp_from": "alerts@test.com",
+        "slack_webhook_url": "https://hooks.slack.com/test",
+    })
+    assert resp.status_code == 200
+    assert resp.json()["message"] == "Notification settings updated"
+
+    resp = await client.get("/auth/settings/notifications")
+    body = resp.json()
+    assert body["smtp_host"] == "smtp.test.com"
+    assert body["smtp_port"] == 587
+    assert body["smtp_username"] == "user@test.com"
+    assert body["smtp_password"] == "********"
+    assert body["smtp_from"] == "alerts@test.com"
+    assert body["slack_webhook_url"] == "********"
+
+
+@pytest.mark.asyncio
+async def test_notification_settings_update_masked(client: AsyncClient):
+    """Sending masked passwords should not clear existing secrets."""
+    resp = await client.put("/auth/settings/notifications", json={
+        "smtp_host": "smtp.keep.com",
+        "smtp_password": "********",
+        "slack_webhook_url": "********",
+    })
+    assert resp.status_code == 200
+
+    resp = await client.put("/auth/settings/notifications", json={
+        "smtp_host": "smtp.keep.com",
+        "smtp_password": "realpass",
+        "slack_webhook_url": "https://hooks.slack.com/real",
+    })
+    assert resp.status_code == 200
+
+    resp = await client.put("/auth/settings/notifications", json={
+        "smtp_host": "smtp.keep.com",
+        "smtp_password": "********",
+        "slack_webhook_url": "********",
+    })
+    assert resp.status_code == 200
+
+    resp = await client.get("/auth/settings/notifications")
+    body = resp.json()
+    assert body["smtp_host"] == "smtp.keep.com"
+    assert body["smtp_password"] == "********"
+    assert body["slack_webhook_url"] == "********"
+
+
+@pytest.mark.asyncio
+async def test_notification_settings_invalid_port(client: AsyncClient):
+    resp = await client.put("/auth/settings/notifications", json={
+        "smtp_port": 99999,
+    })
+    assert resp.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_notification_settings_invalid_slack_url(client: AsyncClient):
+    resp = await client.put("/auth/settings/notifications", json={
+        "slack_webhook_url": "http://insecure.url/hook",
+    })
+    assert resp.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_dashboard_trends_empty(client: AsyncClient):
+    """Trends should return empty list-of-dicts shape when no cases exist."""
+    resp = await client.get("/dashboard/trends?days=7")
+    assert resp.status_code == 200
+    body = resp.json()
+    assert isinstance(body, list)
+    for entry in body:
+        assert entry["cases_created"] == 0
+        assert entry["cases_completed"] == 0
+        assert entry["avg_confidence"] == 0.0
+
+
+@pytest.mark.asyncio
+async def test_create_tenant_invalid_slug(client: AsyncClient):
+    """Slug with special characters should be rejected."""
+    resp = await client.post("/auth/tenants", json={"name": "Test", "slug": "bad slug!!"})
+    assert resp.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_create_tenant_empty_name(client: AsyncClient):
+    """Empty name should be rejected."""
+    resp = await client.post("/auth/tenants", json={"name": "  ", "slug": "valid-slug"})
+    assert resp.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_create_tenant_slug_uniqueness(client: AsyncClient):
+    """Duplicate slug should be rejected."""
+    resp = await client.post("/auth/tenants", json={"name": "One", "slug": "dup-slug"})
+    assert resp.status_code == 200
+    resp = await client.post("/auth/tenants", json={"name": "Two", "slug": "dup-slug"})
+    assert resp.status_code == 409
+
+
+@pytest.mark.asyncio
+async def test_delete_default_tenant(client: AsyncClient):
+    """Default tenant should not be deletable."""
+    resp = await client.get("/auth/tenants")
+    tenants = resp.json()
+    default = [t for t in tenants if t["slug"] == "default"]
+    if default:
+        resp = await client.delete(f"/auth/tenants/{default[0]['id']}")
+        assert resp.status_code == 400

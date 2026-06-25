@@ -106,6 +106,22 @@ def _make_test_app():
     async def health():
         return {"status": "ok"}
 
+    @test_app.get("/health/integrations")
+    async def _integration_health():
+        from app.services.settings import settings as _s
+        return {
+            k: {"configured": bool(v[0]), "status": "connected" if v[0] else "not_configured"}
+            for k, v in {
+                "hubspot": (_s.hubspot_api_key,),
+                "odoo": (_s.odoo_url and _s.odoo_db,),
+                "paystack": (_s.paystack_secret_key,),
+                "dhl": (_s.dhl_api_key,),
+                "qwen": (_s.dashscope_api_key,),
+                "slack": (_s.slack_webhook_url,),
+                "smtp": (_s.smtp_host,),
+            }.items()
+        }
+
     return test_app
 
 
