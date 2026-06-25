@@ -159,5 +159,34 @@ export const api = {
   dashboard: {
     metrics: () =>
       fetchJSON<import("./types").DashboardMetrics>("/dashboard/metrics"),
+    trends: (days = 30) =>
+      fetchJSON<import("./types").TrendPoint[]>(`/dashboard/trends?days=${days}`),
+  },
+  health: {
+    integrations: () =>
+      fetchJSON<import("./types").IntegrationHealth>("/health/integrations"),
+  },
+  auth: {
+    listTenants: () =>
+      fetchJSON<import("./types").TenantInfo[]>("/auth/tenants"),
+    createTenant: (data: { name: string; slug: string }) =>
+      fetchJSON<import("./types").TenantInfo>("/auth/tenants", {
+        method: "POST",
+        body: JSON.stringify(data),
+      }),
+    updateTenant: (id: string, data: { name: string; slug: string }) =>
+      fetchJSON<import("./types").TenantInfo>(`/auth/tenants/${id}`, {
+        method: "PUT",
+        body: JSON.stringify(data),
+      }),
+    deleteTenant: (id: string) =>
+      fetchJSON<{ message: string }>(`/auth/tenants/${id}`, { method: "DELETE" }),
+    getNotificationSettings: () =>
+      fetchJSON<import("./types").NotificationSettings>("/auth/settings/notifications"),
+    updateNotificationSettings: (data: Partial<import("./types").NotificationSettings>) =>
+      fetchJSON<{ message: string }>("/auth/settings/notifications", {
+        method: "PUT",
+        body: JSON.stringify(data),
+      }),
   },
 };

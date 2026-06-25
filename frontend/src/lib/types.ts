@@ -169,3 +169,33 @@ export interface ToolResults {
   tools: Record<string, ToolCallResult[]>;
   tool_count: number;
 }
+
+export interface TrendPoint {
+  date: string;
+  cases_created: number;
+  cases_completed: number;
+  avg_confidence: number;
+}
+
+export interface IntegrationHealth {
+  [key: string]: {
+    configured: boolean;
+    status: string;
+  };
+}
+
+export interface TenantInfo {
+  id: string;
+  name: string;
+  slug: string;
+  created_at: string | null;
+}
+
+export interface NotificationSettings {
+  smtp_host: string;
+  smtp_port: number;
+  smtp_username: string;
+  smtp_password: string;
+  smtp_from: string;
+  slack_webhook_url: string;
+}

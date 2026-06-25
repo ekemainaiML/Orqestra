@@ -20,7 +20,7 @@ import { MetricCard } from "@/components/MetricCard";
 import { StatusBadge } from "@/components/StatusBadge";
 import { useEffect, useState, useCallback } from "react";
 import { api } from "@/lib/api";
-import type { Case } from "@/lib/types";
+import type { Case, TrendPoint } from "@/lib/types";
 
 const STATUS_OPTIONS = ["", "created", "independent_assessment", "adjudication", "approval_pending", "completed", "escalated"] as const;
 
@@ -28,6 +28,7 @@ export default function DashboardPage() {
   const { metrics, loading } = useDashboardMetrics();
   const [cases, setCases] = useState<Case[]>([]);
   const [wfNames, setWfNames] = useState<Record<string, string>>({});
+  const [trends, setTrends] = useState<TrendPoint[]>([]);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [wfFilter, setWfFilter] = useState("");
@@ -54,6 +55,7 @@ export default function DashboardPage() {
       for (const w of r.workflows) map[w.id] = w.name;
       setWfNames(map);
     }).catch(() => {});
+    api.dashboard.trends(14).then(setTrends).catch(() => {});
   }, []);
 
   const clearFilters = useCallback(() => {
@@ -172,6 +174,34 @@ export default function DashboardPage() {
                 </div>
               </div>
             ))}
+          </div>
+        </div>
+      )}
+
+      {trends.length > 0 && (
+        <div>
+          <h2 className="text-lg font-semibold text-text-primary mb-3">
+            Trends (Last 14 Days)
+          </h2>
+          <div className="card p-4 overflow-x-auto">
+            <div className="flex items-end gap-2 h-28 min-w-[500px]">
+              {trends.map((t) => {
+                const h = Math.max(8, (t.cases_created / Math.max(...trends.map((x) => x.cases_created))) * 96);
+                return (
+                  <div key={t.date} className="flex-1 flex flex-col items-center gap-1">
+                    <span className="text-[10px] text-text-muted">{t.avg_confidence > 0 ? `${(t.avg_confidence * 100).toFixed(0)}%` : ""}</span>
+                    <div className="w-full flex flex-col items-center justify-end" style={{ height: "96px" }}>
+                      <div
+                        className="w-full bg-brand-500/40 rounded-t transition-all hover:bg-brand-500/60"
+                        style={{ height: `${h}px`, maxWidth: "32px" }}
+                        title={`${t.date}: ${t.cases_created} cases`}
+                      />
+                    </div>
+                    <span className="text-[9px] text-text-muted">{t.date.slice(5)}</span>
+                  </div>
+                );
+              })}
+            </div>
           </div>
         </div>
       )}

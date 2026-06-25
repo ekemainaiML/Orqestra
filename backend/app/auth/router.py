@@ -174,11 +174,87 @@ async def list_tenants(session: AsyncSession = Depends(get_session)):
     result = await session.execute(select(Tenant))
     tenants = result.scalars().all()
     return [
-        TenantResponse(
-            id=str(t.id),
-            name=t.name,
-            slug=t.slug,
-            created_at=t.created_at.isoformat() if t.created_at else None,
-        )
-        for t in tenants
-    ]
+    TenantResponse(
+        id=str(t.id),
+        name=t.name,
+        slug=t.slug,
+        created_at=t.created_at.isoformat() if t.created_at else None,
+    )
+    for t in tenants
+]
+
+
+@router.put("/tenants/{tenant_id}", response_model=TenantResponse)
+async def update_tenant(tenant_id: str, req: CreateTenantRequest, session: AsyncSession = Depends(get_session)):
+    try:
+        uid = uuid.UUID(tenant_id)
+    except ValueError:
+        raise HTTPException(status_code=422, detail="Invalid tenant ID")
+    tenant = await session.get(Tenant, uid)
+    if not tenant:
+        raise HTTPException(status_code=404, detail="Tenant not found")
+    slug = req.slug.strip().lower().replace(" ", "-")
+    if slug != tenant.slug:
+        existing = await session.scalar(select(Tenant).where(Tenant.slug == slug).where(Tenant.id != uid))
+        if existing:
+            raise HTTPException(status_code=409, detail="Tenant slug already exists")
+    tenant.name = req.name.strip()
+    tenant.slug = slug
+    await session.commit()
+    await session.refresh(tenant)
+    return TenantResponse(
+        id=str(tenant.id), name=tenant.name, slug=tenant.slug,
+        created_at=tenant.created_at.isoformat() if tenant.created_at else None,
+    )
+
+
+@router.delete("/tenants/{tenant_id}")
+async def delete_tenant(tenant_id: str, session: AsyncSession = Depends(get_session)):
+    try:
+        uid = uuid.UUID(tenant_id)
+    except ValueError:
+        raise HTTPException(status_code=422, detail="Invalid tenant ID")
+    tenant = await session.get(Tenant, uid)
+    if not tenant:
+        raise HTTPException(status_code=404, detail="Tenant not found")
+    if tenant.slug == "default":
+        raise HTTPException(status_code=400, detail="Cannot delete the default tenant")
+    await session.delete(tenant)
+    await session.commit()
+    return {"message": "Tenant deleted", "id": tenant_id}
+
+
+class NotificationSettings(BaseModel):
+    smtp_host: str = ""
+    smtp_port: int = 587
+    smtp_username: str = ""
+    smtp_password: str = ""
+    smtp_from: str = "noreply@orqestra.ai"
+    slack_webhook_url: str = ""
+
+
+@router.get("/settings/notifications")
+async def get_notification_settings():
+    return NotificationSettings(
+        smtp_host=settings.smtp_host,
+        smtp_port=settings.smtp_port,
+        smtp_username=settings.smtp_username,
+        smtp_password="********" if settings.smtp_password else "",
+        smtp_from=settings.smtp_from,
+        slack_webhook_url="********" if settings.slack_webhook_url else "",
+    )
+
+
+@router.put("/settings/notifications")
+async def update_notification_settings(req: NotificationSettings):
+    settings.smtp_host = req.smtp_host
+    settings.smtp_port = req.smtp_port
+    settings.smtp_username = req.smtp_username
+    if req.smtp_password and req.smtp_password != "********":
+        settings.smtp_password = req.smtp_password
+    settings.smtp_from = req.smtp_from
+    if req.slack_webhook_url and req.slack_webhook_url != "********":
+        settings.slack_webhook_url = req.slack_webhook_url
+    import app.services.notifications as nmod
+    nmod._global_notifier = None
+    return {"message": "Notification settings updated"}

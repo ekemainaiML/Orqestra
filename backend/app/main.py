@@ -148,3 +148,37 @@ async def health():
 @app.get("/metrics")
 async def get_metrics():
     return metrics.snapshot()
+
+
+@app.get("/health/integrations")
+async def integration_health():
+    return {
+        "hubspot": {
+            "configured": bool(settings.hubspot_api_key),
+            "status": "connected" if settings.hubspot_api_key else "not_configured",
+        },
+        "odoo": {
+            "configured": bool(settings.odoo_url and settings.odoo_db),
+            "status": "connected" if settings.odoo_url and settings.odoo_db else "not_configured",
+        },
+        "paystack": {
+            "configured": bool(settings.paystack_secret_key),
+            "status": "connected" if settings.paystack_secret_key else "not_configured",
+        },
+        "dhl": {
+            "configured": bool(settings.dhl_api_key),
+            "status": "connected" if settings.dhl_api_key else "not_configured",
+        },
+        "qwen": {
+            "configured": bool(settings.dashscope_api_key),
+            "status": "connected" if settings.dashscope_api_key else "not_configured",
+        },
+        "slack": {
+            "configured": bool(settings.slack_webhook_url),
+            "status": "connected" if settings.slack_webhook_url else "not_configured",
+        },
+        "smtp": {
+            "configured": bool(settings.smtp_host),
+            "status": "connected" if settings.smtp_host else "not_configured",
+        },
+    }

@@ -95,6 +95,44 @@ async def get_dashboard_metrics(session: AsyncSession) -> dict[str, Any]:
     }
 
 
+async def get_dashboard_trends(session: AsyncSession, days: int = 30) -> list[dict[str, Any]]:
+    from datetime import UTC, datetime, timedelta
+
+    trends: list[dict[str, Any]] = []
+    now = datetime.now(UTC)
+
+    for day_offset in range(days - 1, -1, -1):
+        day_start = now - timedelta(days=day_offset, hours=now.hour, minutes=now.minute,
+                                     seconds=now.second, microseconds=now.microsecond)
+        day_end = day_start + timedelta(days=1)
+
+        cases_created = await session.execute(
+            select(func.count(Case.id)).where(
+                Case.created_at >= day_start, Case.created_at < day_end
+            )
+        )
+        cases_completed = await session.execute(
+            select(func.count(Case.id)).where(
+                Case.completed_at >= day_start, Case.completed_at < day_end
+            )
+        )
+        avg_conf = await session.execute(
+            select(func.avg(Case.confidence)).where(
+                Case.completed_at >= day_start, Case.completed_at < day_end,
+                Case.confidence.isnot(None),
+            )
+        )
+
+        trends.append({
+            "date": day_start.strftime("%Y-%m-%d"),
+            "cases_created": cases_created.scalar() or 0,
+            "cases_completed": cases_completed.scalar() or 0,
+            "avg_confidence": round(float(avg_conf.scalar() or 0), 2),
+        })
+
+    return trends
+
+
 async def get_case_aggregates(case_id: str, session: AsyncSession) -> dict[str, Any]:
     events = await session.execute(
         select(WorkflowEvent).where(WorkflowEvent.case_id == case_id).order_by(WorkflowEvent.timestamp)
