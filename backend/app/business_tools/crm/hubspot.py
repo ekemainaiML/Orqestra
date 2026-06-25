@@ -1,7 +1,15 @@
+from __future__ import annotations
+
+import asyncio
+import logging
 from typing import Any
+
+import httpx
 
 from app.business_tools.base import APITool, BaseTool
 from app.services.settings import settings
+
+logger = logging.getLogger(__name__)
 
 SIMULATED_CUSTOMERS: dict[str, dict[str, Any]] = {
     "a1b2c3d4-0001-4000-8000-000000000001": {
@@ -67,6 +75,18 @@ SIMULATED_CUSTOMERS: dict[str, dict[str, Any]] = {
 }
 
 
+class HubSpotError(Exception):
+    pass
+
+
+class HubSpotRateLimitError(HubSpotError):
+    pass
+
+
+class HubSpotAuthError(HubSpotError):
+    pass
+
+
 class HubSpotCustomerTool(APITool):
     name = "hubspot_customer"
     description = "CRM customer lookup and history via HubSpot"
@@ -74,27 +94,81 @@ class HubSpotCustomerTool(APITool):
     def _is_configured(self) -> bool:
         return bool(settings.hubspot_api_key)
 
-    async def _hubspot_request(self, endpoint: str, params: dict[str, Any] | None = None) -> dict[str, Any]:
-        import httpx
+    async def _hubspot_request(
+        self,
+        method: str,
+        endpoint: str,
+        json_body: dict[str, Any] | None = None,
+        params: dict[str, Any] | None = None,
+        retries: int = 2,
+    ) -> dict[str, Any]:
         headers = {
             "Authorization": f"Bearer {settings.hubspot_api_key}",
             "Content-Type": "application/json",
         }
         url = f"{settings.hubspot_base_url}/{endpoint.lstrip('/')}"
-        async with httpx.AsyncClient() as client:
-            resp = await client.get(url, headers=headers, params=params)
-            resp.raise_for_status()
-            return resp.json()
+
+        last_error: Exception | None = None
+        for attempt in range(retries + 1):
+            try:
+                async with httpx.AsyncClient(timeout=30.0) as client:
+                    resp = await client.request(method, url, headers=headers, json=json_body, params=params)
+
+                if resp.status_code == 429:
+                    retry_after = int(resp.headers.get("Retry-After", "5"))
+                    logger.warning(
+                        "HubSpot rate limited, retry %ds (attempt %d/%d)",
+                        retry_after,
+                        attempt + 1,
+                        retries + 1,
+                    )
+                    await asyncio.sleep(retry_after)
+                    continue
+
+                if resp.status_code == 401:
+                    raise HubSpotAuthError("HubSpot API authentication failed — check your API key")
+
+                resp.raise_for_status()
+                return resp.json()
+
+            except httpx.TimeoutException as e:
+                last_error = e
+                logger.warning("HubSpot request timed out (attempt %d/%d)", attempt + 1, retries + 1)
+                if attempt < retries:
+                    await asyncio.sleep(1 * (attempt + 1))
+                    continue
+                raise HubSpotError(f"HubSpot request timed out after {retries + 1} attempts") from e
+
+            except (httpx.HTTPStatusError, HubSpotAuthError):
+                raise
+
+            except httpx.RequestError as e:
+                last_error = e
+                logger.warning("HubSpot request failed (attempt %d/%d): %s", attempt + 1, retries + 1, e)
+                if attempt < retries:
+                    await asyncio.sleep(1 * (attempt + 1))
+                    continue
+                raise HubSpotError(f"HubSpot request failed: {e}") from e
+
+        raise HubSpotError(f"HubSpot request failed after {retries + 1} attempts") from last_error
 
     async def _find_by_email(self, email: str) -> dict[str, Any] | None:
         if not self._is_configured():
             return None
-        data = await self._hubspot_request(
-            "crm/v3/objects/contacts/search",
-            params={"filterGroups": [{"filters": [{"propertyName": "email", "operator": "EQ", "value": email}]}]},
-        )
-        results = data.get("results", [])
-        return results[0] if results else None
+        try:
+            data = await self._hubspot_request(
+                "POST",
+                "crm/v3/objects/contacts/search",
+                json_body={
+                    "filterGroups": [{"filters": [{"propertyName": "email", "operator": "EQ", "value": email}]}],
+                    "properties": ["firstname", "lastname", "company", "email", "hs_lead_status", "phone", "city"],
+                },
+            )
+            results = data.get("results", [])
+            return results[0] if results else None
+        except HubSpotError as e:
+            logger.error("HubSpot contact search failed for %s: %s", email, e)
+            return None
 
     async def execute(self, action: str, **kwargs: Any) -> Any:
         if action == "lookup_customer":
@@ -113,16 +187,23 @@ class HubSpotCustomerTool(APITool):
                 hubspot = await self._find_by_email(email)
                 if hubspot:
                     props = hubspot.get("properties", {})
+                    logger.info("HubSpot lookup successful for %s", email)
                     return {
                         "status": "ok",
                         "source": "hubspot",
-                        "name": props.get("firstname", "") + " " + props.get("lastname", ""),
+                        "name": f"{props.get('firstname', '')} {props.get('lastname', '')}".strip(),
                         "organization": props.get("company", ""),
                         "email": email,
+                        "phone": props.get("phone", ""),
+                        "city": props.get("city", ""),
+                        "lead_status": props.get("hs_lead_status", ""),
                         "segment": "enterprise" if props.get("hs_lead_status") == "OPEN" else "standard",
                     }
-            except Exception:
-                pass
+            except HubSpotAuthError:
+                logger.error("HubSpot auth error — falling back to simulated data")
+            except HubSpotError as e:
+                logger.warning("HubSpot lookup failed (%s) — falling back to simulated data", e)
+
         customer = SIMULATED_CUSTOMERS.get(customer_id or "")
         if not customer:
             return {"status": "error", "message": "Customer not found"}

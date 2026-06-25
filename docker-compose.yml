@@ -35,9 +35,12 @@ services:
       DATABASE_URL: postgresql+asyncpg://postgres:postgres@postgres:5432/orqestra
       REDIS_URL: redis://redis:6379/0
       DASHSCOPE_API_KEY: ${DASHSCOPE_API_KEY}
+      HUBSPOT_API_KEY: ${HUBSPOT_API_KEY:-}
       QWEN_MODEL_OPERATIONAL: ${QWEN_MODEL_OPERATIONAL:-qwen3.7-plus}
       QWEN_MODEL_EXECUTIVE: ${QWEN_MODEL_EXECUTIVE:-qwen-max}
       ENVIRONMENT: production
+    env_file:
+      - backend/.env
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-sf", "http://localhost:8000/health"]

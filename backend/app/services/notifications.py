@@ -130,22 +130,47 @@ class NotificationService:
 _global_notifier: NotificationService | None = None
 
 
+async def _load_db_settings() -> dict:
+    from sqlalchemy import select
+
+    from app.models.notification_config import NotificationConfig
+    from app.services.database import get_async_session
+    try:
+        async with get_async_session()() as session:
+            cfg = await session.scalar(select(NotificationConfig).limit(1))
+            if cfg:
+                return {
+                    "host": cfg.smtp_host,
+                    "port": cfg.smtp_port,
+                    "username": cfg.smtp_username,
+                    "password": cfg.smtp_password,
+                    "from_address": cfg.smtp_from,
+                    "slack_webhook_url": cfg.slack_webhook_url,
+                }
+    except Exception:
+        pass
+    return {}
+
+
 def get_notifier() -> NotificationService:
     global _global_notifier
     if _global_notifier is None:
         from app.services.settings import settings
         smtp = {}
-        if settings.smtp_host:
+        host = settings.smtp_host
+        pw = settings.smtp_password
+        slack_url = settings.slack_webhook_url
+        if host:
             smtp = {
-                "host": settings.smtp_host,
+                "host": host,
                 "port": settings.smtp_port,
                 "username": settings.smtp_username,
-                "password": settings.smtp_password,
+                "password": pw,
                 "from_address": settings.smtp_from,
             }
         _global_notifier = NotificationService(
             smtp_config=smtp,
-            slack_webhook=settings.slack_webhook_url,
+            slack_webhook=slack_url,
         )
     return _global_notifier
 

@@ -7,7 +7,8 @@ class FinanceAgent(BaseAgent):
     model_tier = "operational"
     objectives = [
         "Evaluate deal profitability and margin",
-        "Assess financial risk and payment terms",
+        "Assess financial risk, payment history, and credit risk",
+        "Verify past payment transactions and recommend optimal payment terms",
         "Ensure policy compliance (minimum margin, payment terms)",
         "Recommend optimal pricing structure",
     ]
@@ -15,12 +16,18 @@ class FinanceAgent(BaseAgent):
         "Minimum 15% gross margin on all orders",
         "International contracts must account for currency risk",
         "New clients: 50% deposit required for first order",
+        "High-risk customers require upfront deposit; low-risk customers may qualify for net-60",
     ]
-    tools = ["pricing_engine", "policy_engine"]
+    tools = ["pricing_engine", "policy_engine", "payment_service"]
 
     async def assess(self, context: AgentContext) -> AgentRecommendation:
         prompt = self._build_user_prompt(context)
-        prompt += "\n\nFocus on: margin analysis, financial risk, policy compliance, pricing recommendation."
+        prompt += (
+            "\n\nFocus on: margin analysis, financial risk, payment history, credit risk, "
+            "policy compliance, pricing recommendation. "
+            "Use payment tools to verify past transactions, assess credit risk, "
+            "and recommend payment terms."
+        )
         raw = await qwen.assess_with_tools(
             system_prompt=self._build_system_prompt(),
             user_prompt=prompt,

@@ -9,6 +9,7 @@ from pydantic import BaseModel, field_validator
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.models.notification_config import NotificationConfig
 from app.models.tenant import Tenant
 from app.models.user import UserModel
 from app.services.database import get_session
@@ -264,27 +265,54 @@ class NotificationSettings(BaseModel):
 
 
 @router.get("/settings/notifications")
-async def get_notification_settings():
+async def get_notification_settings(session: AsyncSession = Depends(get_session)):
+    cfg = await session.scalar(select(NotificationConfig).limit(1))
+    if not cfg:
+        return NotificationSettings(
+            smtp_host=settings.smtp_host,
+            smtp_port=settings.smtp_port,
+            smtp_username=settings.smtp_username,
+            smtp_password="********" if settings.smtp_password else "",
+            smtp_from=settings.smtp_from,
+            slack_webhook_url="********" if settings.slack_webhook_url else "",
+        )
     return NotificationSettings(
-        smtp_host=settings.smtp_host,
-        smtp_port=settings.smtp_port,
-        smtp_username=settings.smtp_username,
-        smtp_password="********" if settings.smtp_password else "",
-        smtp_from=settings.smtp_from,
-        slack_webhook_url="********" if settings.slack_webhook_url else "",
+        smtp_host=cfg.smtp_host or settings.smtp_host,
+        smtp_port=cfg.smtp_port or settings.smtp_port,
+        smtp_username=cfg.smtp_username or settings.smtp_username,
+        smtp_password="********" if (cfg.smtp_password or settings.smtp_password) else "",
+        smtp_from=cfg.smtp_from or settings.smtp_from,
+        slack_webhook_url="********" if (cfg.slack_webhook_url or settings.slack_webhook_url) else "",
     )
 
 
 @router.put("/settings/notifications")
-async def update_notification_settings(req: NotificationSettings):
-    settings.smtp_host = req.smtp_host
-    settings.smtp_port = req.smtp_port
-    settings.smtp_username = req.smtp_username
+async def update_notification_settings(req: NotificationSettings, session: AsyncSession = Depends(get_session)):
+    cfg = await session.scalar(select(NotificationConfig).limit(1))
+    if not cfg:
+        cfg = NotificationConfig()
+        session.add(cfg)
+
+    cfg.smtp_host = req.smtp_host
+    cfg.smtp_port = req.smtp_port
+    cfg.smtp_username = req.smtp_username
     if req.smtp_password and req.smtp_password != "********":
-        settings.smtp_password = req.smtp_password
-    settings.smtp_from = req.smtp_from
+        cfg.smtp_password = req.smtp_password
+    cfg.smtp_from = req.smtp_from
     if req.slack_webhook_url and req.slack_webhook_url != "********":
-        settings.slack_webhook_url = req.slack_webhook_url
+        cfg.slack_webhook_url = req.slack_webhook_url
+
+    await session.commit()
+
+    settings.smtp_host = cfg.smtp_host
+    settings.smtp_port = cfg.smtp_port
+    settings.smtp_username = cfg.smtp_username
+    if cfg.smtp_password:
+        settings.smtp_password = cfg.smtp_password
+    settings.smtp_from = cfg.smtp_from
+    if cfg.slack_webhook_url:
+        settings.slack_webhook_url = cfg.slack_webhook_url
+
     import app.services.notifications as nmod
     nmod._global_notifier = None
     return {"message": "Notification settings updated"}
