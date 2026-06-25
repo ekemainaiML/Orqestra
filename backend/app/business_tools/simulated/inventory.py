@@ -32,7 +32,7 @@ class CheckAvailabilityTool(BaseTool):
     name = "check_availability"
     description = "Check current stock availability for a product"
 
-    async def execute(self, product: str, quantity: int) -> dict[str, Any]:
+    async def execute(self, product: str, quantity: int) -> dict[str, Any]:  # type: ignore[override]
         available = STOCK.get(product, 0)
         return {
             "product": product,
@@ -48,5 +48,5 @@ class GetProductSpecsTool(BaseTool):
     name = "get_product_specs"
     description = "Get technical specifications for a product"
 
-    async def execute(self, product: str) -> dict[str, Any]:
+    async def execute(self, product: str) -> dict[str, Any]:  # type: ignore[override]
         return SPECS.get(product, {})

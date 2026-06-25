@@ -1,6 +1,6 @@
 from typing import Any
 
-from app.business_tools.base import APITool, BaseTool
+from app.business_tools.base import BaseTool
 from app.services.settings import settings
 
 SIMULATED_BUDGETS: dict[str, dict[str, Any]] = {
@@ -58,9 +58,8 @@ SIMULATED_REORDER_THRESHOLDS: dict[str, dict[str, Any]] = {
 }
 
 
-class OdooERPTool(APITool):
-    name = "odoo_erp"
-    description = "ERP backend for inventory, procurement, and finance data via Odoo"
+class OdooERPTool:
+    """ERP backend for inventory, procurement, and finance data via Odoo (utility, not a registered tool)"""
 
     def _is_configured(self) -> bool:
         return bool(settings.odoo_url and settings.odoo_db and settings.odoo_username and settings.odoo_password)
@@ -129,8 +128,9 @@ class CreateRfqTool(BaseTool):
     name = "create_rfq"
     description = "Create a request for quotation (RFQ) in the ERP"
 
-    async def execute(self, product: str, quantity: int, supplier_id: str | None = None,
-                      notes: str | None = None) -> dict[str, Any]:
+    async def execute(  # type: ignore[override]
+            self, product: str, quantity: int, supplier_id: str | None = None,
+            notes: str | None = None) -> dict[str, Any]:
         odoo = OdooERPTool()
         if odoo._is_configured():
             vendor_id = int(supplier_id) if supplier_id and supplier_id.isdigit() else None
@@ -169,8 +169,9 @@ class CreatePurchaseOrderTool(BaseTool):
     name = "create_purchase_order"
     description = "Create a purchase order in the ERP"
 
-    async def execute(self, supplier: str, product: str, quantity: int,
-                      unit_price: float, notes: str | None = None) -> dict[str, Any]:
+    async def execute(  # type: ignore[override]
+            self, supplier: str, product: str, quantity: int,
+            unit_price: float, notes: str | None = None) -> dict[str, Any]:
         odoo = OdooERPTool()
         if odoo._is_configured():
             vals: dict[str, Any] = {
@@ -197,11 +198,11 @@ class CreatePurchaseOrderTool(BaseTool):
                     "order_status": "draft",
                 }
         total = round(quantity * unit_price, 2)
-        po_id = f"PO-2026-{len(SIMULATED_PURCHASE_ORDERS) + 1:04d}"
+        sim_po_id = f"PO-2026-{len(SIMULATED_PURCHASE_ORDERS) + 1:04d}"
         return {
             "status": "ok",
             "source": "simulated",
-            "po_id": po_id,
+            "po_id": sim_po_id,
             "supplier": supplier,
             "product": product,
             "quantity": quantity,
@@ -217,8 +218,9 @@ class CheckBudgetsTool(BaseTool):
     name = "check_budgets"
     description = "Check budget availability for a product, project, or department"
 
-    async def execute(self, product: str | None = None,
-                      department: str | None = None) -> dict[str, Any]:
+    async def execute(  # type: ignore[override]
+            self, product: str | None = None,
+            department: str | None = None) -> dict[str, Any]:
         odoo = OdooERPTool()
         if odoo._is_configured():
             domain: list[Any] = []
@@ -273,7 +275,7 @@ class ValidateApprovalsTool(BaseTool):
     name = "validate_approvals"
     description = "Check approval status and requirements for purchase orders or budget items"
 
-    async def execute(self, po_id: str | None = None) -> dict[str, Any]:
+    async def execute(self, po_id: str | None = None) -> dict[str, Any]:  # type: ignore[override]
         odoo = OdooERPTool()
         if odoo._is_configured():
             if po_id:
@@ -353,7 +355,7 @@ class GetReorderThresholdsTool(BaseTool):
     name = "get_reorder_thresholds"
     description = "Get reorder thresholds and stock level recommendations for inventory"
 
-    async def execute(self, product: str | None = None) -> dict[str, Any]:
+    async def execute(self, product: str | None = None) -> dict[str, Any]:  # type: ignore[override]
         odoo = OdooERPTool()
         if odoo._is_configured():
             domain: list[Any] = []

@@ -50,7 +50,7 @@ class CheckPolicyTool(BaseTool):
     name = "check_policy"
     description = "Check a specific policy against a business context to determine compliance"
 
-    async def execute(self, policy_id: str, context: dict[str, Any]) -> dict[str, Any]:
+    async def execute(self, policy_id: str, context: dict[str, Any]) -> dict[str, Any]:  # type: ignore[override]
         policy = POLICIES.get(policy_id)
         if not policy:
             return {"policy_id": policy_id, "found": False, "compliant": True}
@@ -81,5 +81,5 @@ class GetAllPoliciesTool(BaseTool):
     name = "get_all_policies"
     description = "Get all available business policies with their descriptions and types"
 
-    async def execute(self) -> list[dict[str, Any]]:
+    async def execute(self) -> list[dict[str, Any]]:  # type: ignore[override]
         return [{"id": pid, **p} for pid, p in POLICIES.items()]

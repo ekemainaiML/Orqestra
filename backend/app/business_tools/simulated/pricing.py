@@ -12,7 +12,7 @@ class CalculatePriceTool(BaseTool):
     name = "calculate_price"
     description = "Calculate unit price, subtotal, margin and applicable discounts"
 
-    async def execute(self, quantity: int, is_preferred: bool = False, is_government: bool = False) -> dict[str, Any]:
+    async def execute(self, quantity: int, is_preferred: bool = False, is_government: bool = False) -> dict[str, Any]:  # type: ignore[override]
         unit_price = BASE_UNIT_PRICE
         if quantity >= VOLUME_DISCOUNT_THRESHOLD:
             unit_price *= (1 - VOLUME_DISCOUNT_RATE)
@@ -35,7 +35,7 @@ class GetExchangeRateTool(BaseTool):
     name = "get_exchange_rate"
     description = "Get simulated exchange rate between two currencies"
 
-    async def execute(self, base: str = "USD", target: str = "NGN") -> dict[str, Any]:
+    async def execute(self, base: str = "USD", target: str = "NGN") -> dict[str, Any]:  # type: ignore[override]
         rates = {"USD_NGN": 1550.0, "USD_KES": 130.0}
         return {
             "pair": f"{base}_{target}",

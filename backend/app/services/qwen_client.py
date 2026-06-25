@@ -63,7 +63,7 @@ class QwenClient:
                         f"\n\nYou MUST respond with valid JSON matching this schema:\n{json.dumps(schema, indent=2)}"
                     )
 
-                resp = await client.chat.completions.create(
+                resp = await client.chat.completions.create(  # type: ignore[call-overload]
                     model=model,
                     messages=messages,
                     temperature=temperature,
@@ -121,7 +121,7 @@ class QwenClient:
         for attempt in range(max_retries):
             try:
                 for _ in range(self._max_tool_rounds):
-                    resp = await client.chat.completions.create(
+                    resp = await client.chat.completions.create(  # type: ignore[call-overload, arg-type]
                         model=model,
                         messages=messages,
                         temperature=temperature,
@@ -189,7 +189,7 @@ class QwenClient:
             try:
                 resp = await client.chat.completions.create(
                     model=model,
-                    messages=messages,
+                    messages=messages,  # type: ignore[arg-type]
                     temperature=temperature,
                 )
                 return resp.choices[0].message.content or ""
@@ -199,6 +199,7 @@ class QwenClient:
                     await asyncio.sleep(delays[attempt])
                     continue
                 return f"error: {e}"
+        return "error: failed to get response"
 
 
 qwen = QwenClient()

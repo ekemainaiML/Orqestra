@@ -170,7 +170,7 @@ class HubSpotCustomerTool(APITool):
             logger.error("HubSpot contact search failed for %s: %s", email, e)
             return None
 
-    async def execute(self, action: str, **kwargs: Any) -> Any:
+    async def execute(self, action: str, **kwargs: Any) -> Any:  # type: ignore[override]
         if action == "lookup_customer":
             return await self._lookup_customer(**kwargs)
         if action == "get_customer_history":
@@ -261,7 +261,7 @@ class HubSpotLookupCustomerTool(BaseTool):
     name = "lookup_customer"
     description = "Look up customer details by ID or email"
 
-    async def execute(self, customer_id: str | None = None, email: str | None = None) -> dict[str, Any]:
+    async def execute(self, customer_id: str | None = None, email: str | None = None) -> dict[str, Any]:  # type: ignore[override]
         hubspot = HubSpotCustomerTool()
         return await hubspot._lookup_customer(customer_id=customer_id, email=email)
 
@@ -270,7 +270,7 @@ class HubSpotCustomerHistoryTool(BaseTool):
     name = "get_customer_history"
     description = "Get customer payment and order history"
 
-    async def execute(self, customer_id: str) -> dict[str, Any]:
+    async def execute(self, customer_id: str) -> dict[str, Any]:  # type: ignore[override]
         hubspot = HubSpotCustomerTool()
         return await hubspot._get_customer_history(customer_id=customer_id)
 
@@ -279,7 +279,7 @@ class HubSpotOpportunitiesTool(BaseTool):
     name = "get_open_opportunities"
     description = "Get open sales opportunities and pipeline value for a customer"
 
-    async def execute(self, customer_id: str) -> dict[str, Any]:
+    async def execute(self, customer_id: str) -> dict[str, Any]:  # type: ignore[override]
         hubspot = HubSpotCustomerTool()
         return await hubspot._get_open_opportunities(customer_id=customer_id)
 
@@ -288,6 +288,6 @@ class HubSpotCustomerValueTool(BaseTool):
     name = "get_customer_value"
     description = "Get customer lifetime value and segment information"
 
-    async def execute(self, customer_id: str) -> dict[str, Any]:
+    async def execute(self, customer_id: str) -> dict[str, Any]:  # type: ignore[override]
         hubspot = HubSpotCustomerTool()
         return await hubspot._get_customer_value(customer_id=customer_id)

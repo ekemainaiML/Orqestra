@@ -1,6 +1,6 @@
 from typing import Any
 
-from app.business_tools.base import APITool, BaseTool
+from app.business_tools.base import BaseTool
 from app.services.settings import settings
 
 SIMULATED_TRANSACTIONS: dict[str, list[dict[str, Any]]] = {
@@ -82,9 +82,8 @@ SIMULATED_CUSTOMER_SCORES: dict[str, dict[str, Any]] = {
 }
 
 
-class PaystackAPITool(APITool):
-    name = "paystack_api"
-    description = "Payment processing backend via Paystack"
+class PaystackAPITool:
+    """Payment processing backend via Paystack (utility, not a registered tool)"""
 
     def _is_configured(self) -> bool:
         return bool(settings.paystack_secret_key)
@@ -106,7 +105,7 @@ class VerifyPaymentTool(BaseTool):
     name = "verify_payment"
     description = "Verify a payment transaction by reference code"
 
-    async def execute(self, reference: str) -> dict[str, Any]:
+    async def execute(self, reference: str) -> dict[str, Any]:  # type: ignore[override]
         if settings.paystack_secret_key:
             try:
                 paystack = PaystackAPITool()
@@ -143,9 +142,9 @@ class VerifyPaymentTool(BaseTool):
 
 class CheckTransactionHistoryTool(BaseTool):
     name = "check_transaction_history"
-    description = "Get transaction history and payment patterns for a customer"
+    description = "Check transaction history for a customer"
 
-    async def execute(self, customer_id: str) -> dict[str, Any]:
+    async def execute(self, customer_id: str) -> dict[str, Any]:  # type: ignore[override]
         txns = SIMULATED_TRANSACTIONS.get(customer_id)
         if not txns:
             return {"status": "error", "message": "Customer not found"}
@@ -169,7 +168,7 @@ class AssessCreditRiskTool(BaseTool):
     name = "assess_credit_risk"
     description = "Assess credit risk for a customer based on payment history"
 
-    async def execute(self, customer_id: str) -> dict[str, Any]:
+    async def execute(self, customer_id: str) -> dict[str, Any]:  # type: ignore[override]
         score = SIMULATED_CUSTOMER_SCORES.get(customer_id)
         if not score:
             return {"status": "error", "message": "Customer not found"}
@@ -191,8 +190,9 @@ class RecommendPaymentTermsTool(BaseTool):
     name = "recommend_payment_terms"
     description = "Recommend payment terms based on customer history and risk profile"
 
-    async def execute(self, customer_id: str, requested_terms: str | None = None,
-                      amount: float | None = None) -> dict[str, Any]:
+    async def execute(  # type: ignore[override]
+            self, customer_id: str, requested_terms: str | None = None,
+            amount: float | None = None) -> dict[str, Any]:
         score = SIMULATED_CUSTOMER_SCORES.get(customer_id)
         if not score:
             return {"status": "error", "message": "Customer not found"}

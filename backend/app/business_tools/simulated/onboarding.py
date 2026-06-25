@@ -53,7 +53,7 @@ class CheckKycTool(BaseTool):
     name = "check_kyc"
     description = "Check KYC status and customer segment information"
 
-    async def execute(self, customer_id: str) -> dict[str, Any]:
+    async def execute(self, customer_id: str) -> dict[str, Any]:  # type: ignore[override]
         customer = CUSTOMERS.get(customer_id)
         if not customer:
             return {"status": "error", "message": "Customer not found"}
@@ -70,7 +70,7 @@ class CheckCreditTool(BaseTool):
     name = "check_credit"
     description = "Check customer credit score and determine if deposit is required"
 
-    async def execute(self, customer_id: str) -> dict[str, Any]:
+    async def execute(self, customer_id: str) -> dict[str, Any]:  # type: ignore[override]
         customer = CUSTOMERS.get(customer_id)
         if not customer:
             return {"status": "error", "message": "Customer not found"}
@@ -88,7 +88,7 @@ class VerifyDocumentsTool(BaseTool):
     name = "verify_documents"
     description = "Verify customer documentation completeness for onboarding"
 
-    async def execute(self, customer_id: str) -> dict[str, Any]:
+    async def execute(self, customer_id: str) -> dict[str, Any]:  # type: ignore[override]
         customer = CUSTOMERS.get(customer_id)
         if not customer:
             return {"status": "error", "message": "Customer not found"}

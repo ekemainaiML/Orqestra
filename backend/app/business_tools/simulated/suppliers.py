@@ -40,7 +40,7 @@ class FindSuppliersTool(BaseTool):
     name = "find_suppliers"
     description = "Find suppliers matching region and minimum reliability criteria"
 
-    async def execute(self, region: str | None = None, min_reliability: float = 0.0) -> list[dict[str, Any]]:
+    async def execute(self, region: str | None = None, min_reliability: float = 0.0) -> list[dict[str, Any]]:  # type: ignore[override]
         results = []
         for s in SUPPLIERS.values():
             if region and s["region"].lower() != region.lower():
@@ -55,7 +55,7 @@ class GetSupplierTool(BaseTool):
     name = "get_supplier"
     description = "Get detailed information about a specific supplier by ID"
 
-    async def execute(self, supplier_id: str) -> dict[str, Any] | None:
+    async def execute(self, supplier_id: str) -> dict[str, Any] | None:  # type: ignore[override]
         for s in SUPPLIERS.values():
             if s["id"] == supplier_id:
                 return s

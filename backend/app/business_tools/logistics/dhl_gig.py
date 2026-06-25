@@ -224,8 +224,9 @@ class EstimateShippingCostTool(BaseTool):
     name = "estimate_shipping_cost"
     description = "Estimate shipping cost based on weight, origin, and destination"
 
-    async def execute(self, weight_kg: float, origin: str, destination: str,
-                      mode: str | None = None) -> dict[str, Any]:
+    async def execute(  # type: ignore[override]
+            self, weight_kg: float, origin: str, destination: str,
+            mode: str | None = None) -> dict[str, Any]:
         route = _find_route(origin, destination)
         if not route:
             return {
@@ -260,8 +261,9 @@ class ValidateDeliveryFeasibilityTool(BaseTool):
     name = "validate_delivery_feasibility"
     description = "Check if delivery is feasible from origin to destination within requested timeline"
 
-    async def execute(self, origin: str, destination: str, requested_days: int,
-                      weight_kg: float | None = None) -> dict[str, Any]:
+    async def execute(  # type: ignore[override]
+            self, origin: str, destination: str, requested_days: int,
+            weight_kg: float | None = None) -> dict[str, Any]:
         route = _find_route(origin, destination)
         if not route:
             return {
@@ -292,14 +294,13 @@ class CheckShippingRoutesTool(BaseTool):
     name = "check_shipping_routes"
     description = "Get available shipping routes, transit times, and modes between locations"
 
-    async def execute(self, origin: str, destination: str) -> dict[str, Any]:
+    async def execute(self, origin: str, destination: str) -> dict[str, Any]:  # type: ignore[override]
         route = _find_route(origin, destination)
         if not route:
             return {
                 "status": "error",
                 "message": f"No route found from '{origin}' to '{destination}'",
             }
-
         return {
             "status": "ok",
             "source": "simulated",
@@ -320,7 +321,7 @@ class TrackShipmentTool(BaseTool):
     name = "track_shipment"
     description = "Track a shipment by tracking code"
 
-    async def execute(self, tracking_code: str) -> dict[str, Any]:
+    async def execute(self, tracking_code: str) -> dict[str, Any]:  # type: ignore[override]
         result = SIMULATED_TRACKING.get(tracking_code)
         if not result:
             return {

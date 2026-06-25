@@ -99,7 +99,7 @@ async def delete_workflow_config(session: AsyncSession, config_id: str) -> bool:
     result = await session.execute(
         select(WorkflowConfigModel).where(
             WorkflowConfigModel.id == config_id,
-            not WorkflowConfigModel.is_builtin,
+            ~WorkflowConfigModel.is_builtin,
         )
     )
     model = result.scalar_one_or_none()

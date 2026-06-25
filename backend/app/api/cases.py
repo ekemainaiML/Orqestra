@@ -75,7 +75,7 @@ async def search_customers(
     hubspot = HubSpotCustomerTool()
     if q and hubspot._is_configured():
         try:
-            enriched = await hubspot.lookup_customer(q)
+            enriched = await hubspot._lookup_customer(customer_id=q)
             if enriched.get("status") == "ok" and enriched.get("source") == "hubspot":
                 pass
         except Exception:
